@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain } = require('electron');
 const notifier = require('node-notifier');
 const cron = require('node-cron');
 const fs = require('fs');
@@ -7,22 +7,59 @@ const screenshot = require('desktop-screenshot');
 
 let tray;
 let mainWindow;
+let loginWindow;
 
-// Crea la ventana de la aplicación
+function createLoginWindow() {
+  loginWindow = new BrowserWindow({
+    width: 800,
+    height: 600,
+    webPreferences: {
+      // preload: path.join(__dirname, './src/scripts/login.js'),
+      nodeIntegration: true,
+      contextIsolation: false,
+    },
+    frame: false, // Sin marco
+    autoHideMenuBar: true,
+    titleBarStyle: 'hidden',
+    transparent: true, // Hacer que el fondo sea transparente
+    backgroundColor: '#00000000' // Fondo transparente
+  });
+
+  loginWindow.loadFile('./src/pages/login.html');
+
+  // Evento cuando la ventana está minimizada
+  loginWindow.on('minimize', (event) => {
+    event.preventDefault();
+    loginWindow.hide(); // Oculta la ventana en lugar de minimizarla
+  });
+
+  // Evento cuando se cierra la ventana
+  loginWindow.on('close', (event) => {
+    if (!app.isQuiting) {
+      event.preventDefault();
+      loginWindow.hide(); // Oculta la ventana en lugar de cerrarla
+    }
+    return false;
+  });
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
     webPreferences: {
+      // preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: true,
       contextIsolation: false,
     },
-    frame: false,
+    frame: false, // Sin marco
     autoHideMenuBar: true,
     titleBarStyle: 'hidden',
+    transparent: true, // Hacer que el fondo sea transparente
+    backgroundColor: '#00000000' // Fondo transparente
   });
 
-  mainWindow.loadFile('login.html');
+  mainWindow.loadFile('./src/pages/index.html');
 
   // Evento cuando la ventana está minimizada
   mainWindow.on('minimize', (event) => {
@@ -41,10 +78,8 @@ function createWindow() {
 }
 
 function createTray() {
-  // Crea un ícono en la bandeja del sistema
-  tray = new Tray(path.join(__dirname, 'tele-trabajo.png'));
+  tray = new Tray(path.join(__dirname, './src/assets/img/tele-trabajo.png'));
 
-  // Crea un menú contextual para el ícono
   const contextMenu = Menu.buildFromTemplate([
     {
       label: 'Mostrar',
@@ -63,12 +98,10 @@ function createTray() {
     }
   ]);
 
-  // Configura el ícono y el menú contextual
   tray.setToolTip('Mi Aplicación Electron');
   tray.setContextMenu(contextMenu);
 }
 
-// Mostrar notificación de presencia
 function showPresenceNotification() {
   notifier.notify(
     {
@@ -91,13 +124,12 @@ function showPresenceNotification() {
         console.log(`Presencia confirmada a las: ${checkTime}`);
         // Aquí podrías enviar el checkTime a un servidor si fuera necesario
       } else {
-        console.log('No se recibio respuesta del usuario.');
+        console.log('No se recibió respuesta del usuario.');
       }
     }
   );
 }
 
-// Capturar pantalla y guardar en el escritorio
 function captureScreenAndSave() {
   const desktopPath = path.join(require('os').homedir(), 'Desktop', 'capturas');
 
@@ -118,24 +150,36 @@ function captureScreenAndSave() {
   });
 }
 
-// Configurar tareas recurrentes
 function setupCronJobs() {
-  // Notificación de presencia cada 5 minutos
+  // Notificación de presencia cada minuto
   cron.schedule('*/1 * * * *', () => {
     showPresenceNotification();
   });
 
-  // Captura de pantalla cada 5 minutos
+  // Captura de pantalla cada minuto
   cron.schedule('*/1 * * * *', () => {
     captureScreenAndSave();
   });
 }
 
-// Eventos de Electron
 app.whenReady().then(() => {
+  createLoginWindow();
+  createTray();
+
+  ipcMain.on('close-main-window', () => {
+    if (mainWindow) {
+      mainWindow.close(); // Cierra la ventana principal
+    }
+  });
+
+});
+
+ipcMain.on('login-success', () => {
   createWindow();
   setupCronJobs();
-  createTray();
+  if (loginWindow) {
+    loginWindow.close();
+  }
 });
 
 app.on('window-all-closed', () => {

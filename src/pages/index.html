@@ -4,18 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Aplicación Principal</title>
-    <link rel="stylesheet" href="styles/main.css" />
+    <link rel="stylesheet" href="../styles/main.css" />
   </head>
   <body>
     <div class="app-container">
       <h1>Bienvenido a la Aplicación</h1>
       <p>Este es el contenido de la aplicación principal.</p>
       <div class="window-controls">
-        <button id="minimize">_</button>
-        <button id="maximize">[]</button>
-        <button id="close">X</button>
+        <svg id="close" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+        </svg>
+        
       </div>
     </div>
-    <script src="main.js"></script>
+    <script src="../scripts/main.js"></script>
   </body>
 </html>
