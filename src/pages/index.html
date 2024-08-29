@@ -5,16 +5,74 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Aplicación Principal</title>
     <link rel="stylesheet" href="../styles/main.css" />
+    <link rel="stylesheet" href="../styles/index.css" />
   </head>
   <body>
     <div class="app-container">
-      <h1>Bienvenido a la Aplicación</h1>
-      <p>Este es el contenido de la aplicación principal.</p>
-      <div class="window-controls">
-        <svg id="close" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-        </svg>
-        
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <div class="avatar">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+            </svg>
+            
+            <!-- <div class="avatar-fallback">JP</div> -->
+          </div>
+          <div class="grid gap-1">
+            <div class="font-medium text-lg">Carlos Said</div>
+            <div class="text-muted-foreground text-sm">asd</div>
+          </div>
+        </div>
+        <div class="text-muted-foreground text-sm">
+          <script>
+            document.write(new Date().toLocaleString());
+          </script>
+        </div>
+      </div>
+      <div class="separator"></div>
+      
+      <div class="grid gap-2">
+        <div class="text-muted-foreground text-sm">Company</div>
+        <div class="font-medium text-lg">Acme Inc.</div>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button class="button button-outline">
+          <svg
+            id="logout"
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            color="black"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" x2="9" y1="12" y2="12" />
+          </svg>
+        </button>
+        <button class="button">
+          <svg
+            id="close"
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M18 20V6a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v14" />
+            <path d="M2 20h20" />
+            <path d="M14 12v.01" />
+          </svg>
+        </button>
       </div>
     </div>
     <script src="../scripts/main.js"></script>

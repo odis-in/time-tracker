@@ -1,0 +1,152 @@
+/* Estilos para el contenedor principal con fondo y bordes redondeados */
+.app-container {
+  font-family: Arial, sans-serif;
+  background-color: #f0f0f0; /* Color de fondo */
+  border-radius: 20px; /* Bordes redondeados */
+  padding: 20px; /* Espacio interno */
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2); /* Sombra para la profundidad */
+  overflow: hidden; /* Evita que el contenido se desborde */
+  position: relative; /* Posición relativa para el contenedor */
+  margin: auto; /* Centra el contenedor horizontalmente */
+}
+
+/* Estilo para los botones de ventana */
+.window-controls {
+  position: absolute;
+  top: 10px;
+  right: 10px; /* Cambiado a 'right' para mover los botones a la derecha */
+  display: flex;
+  gap: 5px;
+}
+
+.window-btn {
+  width: 28px; /* Ajustar tamaño a cuadrado más pequeño */
+  height: 28px; /* Ajustar tamaño a cuadrado más pequeño */
+  background-color: #ddd;
+  border: none;
+  border-radius: 4px; /* Bordes redondeados menos pronunciados */
+  cursor: pointer;
+  font-size: 16px; /* Ajustar el tamaño del texto */
+  text-align: center;
+  line-height: 28px;
+}
+
+.window-btn:hover {
+  background-color: #bbb;
+}
+
+/* Estilo para el ícono SVG */
+.window-controls svg {
+  width: 24px; /* Tamaño del ícono */
+  height: 24px;
+  cursor: pointer; /* Cambia el cursor al pasar sobre el ícono */
+  transition: stroke 0.3s ease; /* Transición suave para el color del trazo */
+}
+
+/* Cambia el color del ícono al pasar el ratón */
+.window-controls svg:hover {
+  stroke: red; /* Cambia el color del trazo del ícono al pasar el ratón */
+}
+
+/* Estilos adicionales para el componente principal */
+.card {
+  width: 90%;
+  max-width: 48rem;
+  padding: 2rem;
+  background-color: #ffffff;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(0, 0, 0, 0.1),
+    0 4px 8px rgba(0, 0, 0, 0.15), 0 8px 16px rgba(0, 0, 0, 0.2),
+    0 16px 32px rgba(0, 0, 0, 0.25);
+}
+
+.avatar {
+  height: 8rem;
+  width: 8rem;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #e2e6ea;
+}
+
+.avatar img {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+}
+
+.avatar-fallback {
+  color: #ffffff;
+  font-size: 1.25rem;
+}
+
+.separator {
+  margin: 1.5rem 0;
+  border-top: 1px solid #e2e6ea;
+}
+
+.text-muted-foreground {
+  color: #6c757d;
+}
+
+.font-medium {
+  font-weight: 500;
+}
+
+.text-lg {
+  font-size: 1.125rem;
+}
+
+.text-sm {
+  font-size: 0.875rem;
+}
+
+.button {
+  width: 48px;
+  cursor: pointer;
+}
+.button svg {
+  margin-right: 0.5rem;
+}
+
+.button-outline {
+  background: transparent;
+}
+
+.flex {
+  display: flex;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.justify-end {
+  justify-content: flex-end;
+}
+
+.gap-4 {
+  gap: 1rem;
+}
+
+.gap-2 {
+  gap: 0.5rem;
+}
+
+.mt-6 {
+  margin-top: 1.5rem;
+}
+
+.grid {
+  display: grid;
+}
+
+.min-h-screen {
+  min-height: 100vh;
+}

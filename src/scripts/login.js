@@ -13,3 +13,10 @@ document.getElementById('loginForm').addEventListener('submit', (event) => {
     alert('Usuario o contraseña incorrectos'); // Muestra un mensaje de error
   }
 });
+
+document.addEventListener('DOMContentLoaded', () => {
+	const closeButton = document.getElementById('close');
+	closeButton.addEventListener('click', () => {
+		ipcRenderer.send('close-main-window'); 
+	});
+});

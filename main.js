@@ -167,12 +167,24 @@ app.whenReady().then(() => {
   createTray();
 
   ipcMain.on('close-main-window', () => {
-    if (mainWindow) {
-      mainWindow.close(); // Cierra la ventana principal
-    }
+    if (loginWindow) {
+      loginWindow.close(); 
+    } 
   });
-
 });
+ipcMain.on('close-main-window', () => {
+  if (mainWindow) {
+    mainWindow.close();
+  }
+});
+
+ipcMain.on('logout', () => {
+  if (mainWindow) {
+    mainWindow.close(); // Cierra la ventana principal
+  }
+  createLoginWindow(); // Vuelve a abrir la ventana de login
+});
+
 
 ipcMain.on('login-success', () => {
   createWindow();
