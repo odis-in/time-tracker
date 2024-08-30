@@ -1,4 +1,5 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain } = require('electron');
+const { authenticateUser } = require('./odoo/authenticate'); 
 const notifier = require('node-notifier');
 const cron = require('node-cron');
 const fs = require('fs');
@@ -192,6 +193,16 @@ function stopCronJobs() {
 app.whenReady().then(() => {
   createLoginWindow();
   createTray();
+
+  ipcMain.handle('login', async (event, username, password) => {
+    try {
+        const uid = await authenticateUser(username, password);
+        return uid;
+    } catch (error) {
+        console.error('Error al autenticar con Odoo:', error);
+        throw error; // Lanzar error para manejar en el renderer
+    }
+});
 
   ipcMain.on('close-main-window', () => {
     if (mainWindow) {
