@@ -8,6 +8,8 @@ const screenshot = require('desktop-screenshot');
 let tray;
 let mainWindow;
 let loginWindow;
+let presenceJob; 
+let screenshotJob; 
 
 function createLoginWindow() {
   loginWindow = new BrowserWindow({
@@ -18,26 +20,24 @@ function createLoginWindow() {
       nodeIntegration: true,
       contextIsolation: false,
     },
-    frame: false, // Sin marco
+    frame: false,
     autoHideMenuBar: true,
     titleBarStyle: 'hidden',
-    transparent: true, // Hacer que el fondo sea transparente
-    backgroundColor: '#00000000' // Fondo transparente
+    transparent: true,
+    backgroundColor: '#00000000'
   });
 
   loginWindow.loadFile('./src/pages/login.html');
 
-  // Evento cuando la ventana está minimizada
   loginWindow.on('minimize', (event) => {
     event.preventDefault();
-    loginWindow.hide(); // Oculta la ventana en lugar de minimizarla
+    loginWindow.hide();
   });
 
-  // Evento cuando se cierra la ventana
   loginWindow.on('close', (event) => {
     if (!app.isQuiting) {
       event.preventDefault();
-      loginWindow.hide(); // Oculta la ventana en lugar de cerrarla
+      loginWindow.hide();
     }
     return false;
   });
@@ -52,26 +52,24 @@ function createWindow() {
       nodeIntegration: true,
       contextIsolation: false,
     },
-    frame: false, // Sin marco
+    frame: false,
     autoHideMenuBar: true,
     titleBarStyle: 'hidden',
-    transparent: true, // Hacer que el fondo sea transparente
-    backgroundColor: '#00000000' // Fondo transparente
+    transparent: true,
+    backgroundColor: '#00000000'
   });
 
   mainWindow.loadFile('./src/pages/index.html');
 
-  // Evento cuando la ventana está minimizada
   mainWindow.on('minimize', (event) => {
     event.preventDefault();
-    mainWindow.hide(); // Oculta la ventana en lugar de minimizarla
+    mainWindow.hide();
   });
 
-  // Evento cuando se cierra la ventana
   mainWindow.on('close', (event) => {
     if (!app.isQuiting) {
       event.preventDefault();
-      mainWindow.hide(); // Oculta la ventana en lugar de cerrarla
+      mainWindow.hide();
     }
     return false;
   });
@@ -122,7 +120,6 @@ function showPresenceNotification() {
       if (metadata.activationType === 'clicked' || metadata.activationType === 'dismissed') {
         const checkTime = new Date().toString();
         console.log(`Presencia confirmada a las: ${checkTime}`);
-        // Aquí podrías enviar el checkTime a un servidor si fuera necesario
       } else {
         console.log('No se recibió respuesta del usuario.');
       }
@@ -133,7 +130,6 @@ function showPresenceNotification() {
 function captureScreenAndSave() {
   const desktopPath = path.join(require('os').homedir(), 'Desktop', 'capturas');
 
-  // Crear la carpeta si no existe
   if (!fs.existsSync(desktopPath)) {
     fs.mkdirSync(desktopPath, { recursive: true });
   }
@@ -146,20 +142,28 @@ function captureScreenAndSave() {
       return;
     }
     console.log('Captura de pantalla guardada en:', filePath);
-    // Aquí podrías enviar al servidor si fuera necesario
   });
 }
 
 function setupCronJobs() {
   // Notificación de presencia cada minuto
-  cron.schedule('*/1 * * * *', () => {
+  presenceJob = cron.schedule('*/1 * * * *', () => {
     showPresenceNotification();
   });
 
   // Captura de pantalla cada minuto
-  cron.schedule('*/1 * * * *', () => {
+  screenshotJob = cron.schedule('*/1 * * * *', () => {
     captureScreenAndSave();
   });
+}
+
+function stopCronJobs() {
+  if (presenceJob) {
+    presenceJob.stop();
+  }
+  if (screenshotJob) {
+    screenshotJob.stop();
+  }
 }
 
 app.whenReady().then(() => {
@@ -167,32 +171,26 @@ app.whenReady().then(() => {
   createTray();
 
   ipcMain.on('close-main-window', () => {
-    if (loginWindow) {
-      loginWindow.close(); 
-    } 
+    if (mainWindow) {
+      mainWindow.close();
+    }
   });
-});
 
-ipcMain.on('close-main-window', () => {
-  if (mainWindow) {
-    mainWindow.close();
-  }
-});
+  ipcMain.on('logout', () => {
+    if (mainWindow) {
+      mainWindow.close();
+    }
+    stopCronJobs(); // Detiene los trabajos cron
+    createLoginWindow(); // Vuelve a abrir la ventana de login
+  });
 
-ipcMain.on('logout', () => {
-  if (mainWindow) {
-    mainWindow.close(); // Cierra la ventana principal
-  }
-  createLoginWindow(); // Vuelve a abrir la ventana de login
-});
-
-
-ipcMain.on('login-success', () => {
-  createWindow();
-  setupCronJobs();
-  if (loginWindow) {
-    loginWindow.close();
-  }
+  ipcMain.on('login-success', () => {
+    createWindow();
+    setupCronJobs(); // Configura los trabajos cron
+    if (loginWindow) {
+      loginWindow.close();
+    }
+  });
 });
 
 app.on('window-all-closed', () => {
