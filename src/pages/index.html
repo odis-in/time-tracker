@@ -9,20 +9,19 @@
   </head>
   <body>
     <div class="app-container">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-4">
+      <div class="flex items-center justify-between">        <div class="flex items-center gap-4">
           <div class="avatar">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
               <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
             </svg>
-            
-            <!-- <div class="avatar-fallback">JP</div> -->
           </div>
           <div class="grid gap-1">
             <div class="font-medium text-lg">Carlos Said</div>
-            <div class="text-muted-foreground text-sm">asd</div>
+            <div class="text-muted-foreground text-sm">Rol de usuario</div>
           </div>
         </div>
+
+        <!-- Fecha y Hora -->
         <div class="text-muted-foreground text-sm">
           <script>
             document.write(new Date().toLocaleString());
@@ -32,11 +31,12 @@
       <div class="separator"></div>
       
       <div class="grid gap-2">
-        <div class="text-muted-foreground text-sm">Company</div>
+        <div class="text-muted-foreground text-sm">Compañía</div>
         <div class="font-medium text-lg">Acme Inc.</div>
       </div>
-      <div class="flex justify-end gap-2">
-        <button class="button button-outline">
+
+      <div class="flex justify-end gap-2 mt-6 button-container">
+        <button class="button button-outline" title="Cerrar sesión">
           <svg
             id="logout"
             xmlns="http://www.w3.org/2000/svg"
@@ -55,7 +55,7 @@
             <line x1="21" x2="9" y1="12" y2="12" />
           </svg>
         </button>
-        <button class="button">
+        <button class="button" title="Cerrar aplicación">
           <svg
             id="close"
             xmlns="http://www.w3.org/2000/svg"
@@ -75,6 +75,8 @@
         </button>
       </div>
     </div>
+
+    <!-- Scripts -->
     <script src="../scripts/main.js"></script>
   </body>
 </html>

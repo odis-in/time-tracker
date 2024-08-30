@@ -11,7 +11,7 @@ let loginWindow;
 
 function createLoginWindow() {
   loginWindow = new BrowserWindow({
-    width: 800,
+    width: 700,
     height: 600,
     webPreferences: {
       // preload: path.join(__dirname, './src/scripts/login.js'),
@@ -45,8 +45,8 @@ function createLoginWindow() {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 700,
+    height: 450,
     webPreferences: {
       // preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: true,
@@ -172,6 +172,7 @@ app.whenReady().then(() => {
     } 
   });
 });
+
 ipcMain.on('close-main-window', () => {
   if (mainWindow) {
     mainWindow.close();

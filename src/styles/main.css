@@ -1,104 +1,83 @@
 body {
-  border-radius: 20px; /* Bordes redondeados */
-  padding: 0; /* Elimina espacio interno adicional */
-  margin: 0; /* Elimina márgenes predeterminados del navegador */
-  overflow: hidden; /* Evita que el contenido se desborde */
-  height: 100vh; /* Altura completa de la ventana */
-  display: flex; /* Uso de flexbox para centrar contenido */
-  justify-content: center; /* Centra horizontalmente */
-  align-items: center; /* Centra verticalmente */
-  background: transparent; /* Fondo transparente para el body */
-  box-sizing: border-box; /* Incluye el padding dentro del ancho y alto del body */
+  border-radius: 20px;
+  padding: 0; 
+  margin: 0; 
+  overflow: hidden;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: transparent;
+  box-sizing: border-box;
 }
 
-/* Estilos para el contenedor principal con fondo y bordes redondeados */
 .app-container {
   font-family: Arial, sans-serif;
-  background-color: #f0f0f0; /* Color de fondo */
-  border-radius: 20px; /* Bordes redondeados */
-  padding: 20px; /* Espacio interno */
-  margin: 40px auto; /* Margen automático para centrar el contenedor */
-  width: 90%; /* Ancho del contenedor */
-  height: 90%; /* Altura del contenedor */
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2); /* Sombra para la profundidad */
-  overflow: hidden; /* Evita que el contenido se desborde */
-  position: relative; /* Posición relativa para el contenedor */
+  background-color: #f0f0f0; 
+  border-radius: 20px; 
+  padding: 20px;
+  margin: 40px auto; 
+  width: 90%; 
+  height: 90%; 
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  overflow: hidden; 
+  position: relative; 
 }
 
-/* Ajusta el contenedor de inicio de sesión */
 .login-container {
-  background-color: white; /* Fondo de contenedor */
-  border-radius: 15px; /* Bordes redondeados para el contenedor de formulario */
+  background-color: white; 
+  border-radius: 15px; 
   padding: 30px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Sombra ligera para profundidad */
-  max-width: 400px; /* Limitar el ancho del contenedor */
-  margin: auto; /* Centrar el contenedor */
- 
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); 
+  max-width: 400px; 
+  margin: 100px auto;
 }
 
 h1 {
   color: #333;
-}
-
-/* Estilos para la página de login */
-.login-container {
-  width: 100%;
-  max-width: 400px;
-  margin: 100px auto;
-  padding: 20px;
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   text-align: center;
-}
-
-.login-container h1 {
   margin-bottom: 20px;
-  text-align: center;
 }
 
 .form-group {
   margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* Alinea los elementos a la izquierda */
 }
 
 label {
-  display: block;
   margin-bottom: 5px;
+  align-self: flex-start; /* Alinea el label a la izquierda dentro del form-group */
+  font-weight: normal; /* Estilo normal para los labels */
 }
 
 input[type="text"],
-input[type="password"] {
-  width: 90%;
+input[type="password"],
+button {
+  width: 100%; /* Asegura que el ancho sea 100% del contenedor */
   padding: 10px;
   border: 1px solid #ccc;
   border-radius: 4px;
+  box-sizing: border-box; /* Incluye el padding y el borde dentro del ancho total */
 }
 
 button {
-  width: 90%;
-  padding: 10px;
-  border: none;
-  border-radius: 4px;
   background-color: #007bff;
   color: #fff;
   font-size: 16px;
   cursor: pointer;
+  border: none; /* Elimina el borde del botón */
 }
 
 button:hover {
   background-color: #0056b3;
 }
 
-/* Estilos para la aplicación principal */
-.app-container {
-  padding: 20px;
-}
-
-/* Estilo de los botones de ventana */
 .window-controls {
   position: absolute;
   top: 10px;
-  right: 10px; /* Cambiado a 'right' para mover los botones a la derecha */
+  right: 10px; 
   display: flex;
   gap: 5px;
 }
@@ -119,15 +98,17 @@ button:hover {
   background-color: #bbb;
 }
 
-/* Estilo para el ícono SVG */
 .window-controls svg {
-  width: 32px; /* Tamaño del ícono */
-  height: 32px;
-  cursor: pointer; /* Cambia el cursor al pasar sobre el ícono */
-  transition: stroke 0.3s ease; /* Transición suave para el color del trazo */
+  cursor: pointer; 
+  transition: stroke 0.3s ease; 
 }
 
-/* Cambia el color del ícono al pasar el ratón */
 .window-controls svg:hover {
-  stroke: red; /* Cambia el color del trazo del ícono al pasar el ratón */
+  stroke: red;
+}
+.error-message {
+  color: red;
+  margin-top: 10px;
+  font-size: 14px;
+  text-align: center;
 }

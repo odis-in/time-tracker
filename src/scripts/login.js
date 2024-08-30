@@ -6,17 +6,21 @@ document.getElementById('loginForm').addEventListener('submit', (event) => {
   const username = document.getElementById('username').value;
   const password = document.getElementById('password').value;
 
-  // Validación simple de usuario y contraseña con datos de ejemplo
   if (username === 'admin' && password === '1234') {
     ipcRenderer.send('login-success'); // Envía un mensaje al proceso principal
+    // Limpiar mensaje de error
+    document.getElementById('error-message').textContent = '';
   } else {
-    alert('Usuario o contraseña incorrectos'); // Muestra un mensaje de error
+    // Mostrar mensaje de error
+    document.getElementById('error-message').textContent = 'Usuario o contraseña incorrectos';
+    // Enfocar el campo de usuario
+    
   }
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-	const closeButton = document.getElementById('close');
-	closeButton.addEventListener('click', () => {
-		ipcRenderer.send('close-main-window'); 
-	});
+  const closeButton = document.getElementById('close');
+  closeButton.addEventListener('click', () => {
+    ipcRenderer.send('close-main-window'); 
+  });
 });
