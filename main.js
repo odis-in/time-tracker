@@ -8,15 +8,19 @@ const screenshot = require('desktop-screenshot');
 let tray;
 let mainWindow;
 let loginWindow;
-let presenceJob; 
-let screenshotJob; 
+let presenceJob;
+let screenshotJob;
 
 function createLoginWindow() {
+  if (loginWindow) {
+    loginWindow.show();
+    return;
+  }
+
   loginWindow = new BrowserWindow({
     width: 700,
     height: 600,
     webPreferences: {
-      // preload: path.join(__dirname, './src/scripts/login.js'),
       nodeIntegration: true,
       contextIsolation: false,
     },
@@ -24,7 +28,7 @@ function createLoginWindow() {
     autoHideMenuBar: true,
     titleBarStyle: 'hidden',
     transparent: true,
-    backgroundColor: '#00000000'
+    backgroundColor: '#00000000',
   });
 
   loginWindow.loadFile('./src/pages/login.html');
@@ -39,16 +43,24 @@ function createLoginWindow() {
       event.preventDefault();
       loginWindow.hide();
     }
-    return false;
+  });
+
+  loginWindow.on('closed', () => {
+    loginWindow = null;
   });
 }
 
-function createWindow() {
+function createMainWindow() {
+  if (mainWindow) {
+    mainWindow.show();
+    return;
+  }
+
   mainWindow = new BrowserWindow({
     width: 700,
     height: 450,
     webPreferences: {
-      // preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: true,
       contextIsolation: false,
     },
@@ -56,7 +68,7 @@ function createWindow() {
     autoHideMenuBar: true,
     titleBarStyle: 'hidden',
     transparent: true,
-    backgroundColor: '#00000000'
+    backgroundColor: '#00000000',
   });
 
   mainWindow.loadFile('./src/pages/index.html');
@@ -71,7 +83,10 @@ function createWindow() {
       event.preventDefault();
       mainWindow.hide();
     }
-    return false;
+  });
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
   });
 }
 
@@ -82,8 +97,16 @@ function createTray() {
     {
       label: 'Mostrar',
       click: () => {
-        if (mainWindow) {
+        if (mainWindow && mainWindow.isVisible()) {
+          mainWindow.focus();
+        } else if (loginWindow && loginWindow.isVisible()) {
+          loginWindow.focus();
+        } else if (mainWindow) {
           mainWindow.show();
+        } else if (loginWindow) {
+          loginWindow.show();
+        } else {
+          createLoginWindow(); // Si no hay ventana visible, crea la de login.
         }
       }
     },
@@ -173,6 +196,12 @@ app.whenReady().then(() => {
   ipcMain.on('close-main-window', () => {
     if (mainWindow) {
       mainWindow.close();
+      return;
+    }
+
+    if (loginWindow) {
+      loginWindow.close();
+      return;
     }
   });
 
@@ -185,10 +214,10 @@ app.whenReady().then(() => {
   });
 
   ipcMain.on('login-success', () => {
-    createWindow();
+    createMainWindow(); // Muestra la ventana principal
     setupCronJobs(); // Configura los trabajos cron
     if (loginWindow) {
-      loginWindow.close();
+      loginWindow.close(); // Cierra la ventana de login
     }
   });
 });
@@ -200,7 +229,11 @@ app.on('window-all-closed', () => {
 });
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
+  if (!mainWindow && !loginWindow) {
+    createLoginWindow();
+  } else if (mainWindow) {
+    mainWindow.show();
+  } else if (loginWindow) {
+    loginWindow.show();
   }
 });
