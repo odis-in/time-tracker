@@ -13,6 +13,9 @@ document.getElementById('loginForm').addEventListener('submit', async (event) =>
     if (uid) {
       ipcRenderer.send('login-success');
       document.getElementById('error-message').textContent = '';
+      document.getElementById('username').value = '';
+      document.getElementById('password').value = ''; 
+      document.getElementById('username').focus();
     }
   } catch (error) {
     document.getElementById('error-message').textContent = 'Usuario o contraseña incorrectos';
