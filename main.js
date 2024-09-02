@@ -69,6 +69,7 @@ async function verifyCredentialsOnStart() {
       const uid = await authenticateUser(username, password);
       if (uid) {
         createMainWindow();
+        setupCronJobs();
       } else {
         createLoginWindow();
       }
@@ -132,6 +133,7 @@ ipcMain.on('logout', async () => {
 
 ipcMain.on('login-success', () => {
   createMainWindow();
+  setupCronJobs();
 
   const loginWindow = getLoginWindow();
   if (loginWindow) {
