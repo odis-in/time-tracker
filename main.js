@@ -1,9 +1,10 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain } = require('electron');
-const { authenticateUser, login, checkSession, logout } = require('./src/odoo/authenticateUser');
+const { authenticateUser } = require('./src/odoo/authenticateUser');
 const { presenceNotification } = require('./src/utils/presenceNotification');
 const cron = require('node-cron');
 const path = require('path');
 const { captureScreen } = require('./src/utils/captureScreen');
+const { saveCredentials, getCredentials, clearCredentials } = require('./src/utils/crendentialManager');
 
 let tray;
 let mainWindow;
@@ -140,6 +141,27 @@ function setupCronJobs() {
   });
 }
 
+async function verifyCredentialsOnStart() {
+  try {
+    const { username, password } = await getCredentials();
+    if (username && password) {
+      // Verificar las credenciales con Odoo
+      const uid = await authenticateUser(username, password);
+      if (uid) {
+        createMainWindow();
+        setupCronJobs();
+      } else {
+        createLoginWindow();
+      }
+    } else {
+      createLoginWindow();
+    }
+  } catch (error) {
+    console.error('Error al verificar las credenciales:', error);
+    createLoginWindow();
+  }
+}
+
 function stopCronJobs() {
   if (presenceJob) {
     presenceJob.stop();
@@ -150,16 +172,17 @@ function stopCronJobs() {
 }
 
 app.whenReady().then(() => {
-  createLoginWindow();
+  verifyCredentialsOnStart();
   createTray();
 
   ipcMain.handle('login', async (event, username, password) => {
     try {
       const uid = await authenticateUser(username, password);
+      await saveCredentials(username, password, uid.toString());
       return uid;
     } catch (error) {
       console.error('Error al autenticar con Odoo:', error);
-      throw error; // Lanzar error para manejar en el renderer
+      throw error;
     }
   });
 });
@@ -176,12 +199,17 @@ ipcMain.on('close-main-window', () => {
   }
 });
 
-ipcMain.on('logout', () => {
-  if (mainWindow) {
-    mainWindow.close();
+ipcMain.on('logout', async () => {
+  try {
+    await clearCredentials();
+
+    if (mainWindow) { mainWindow.close(); }
+
+    stopCronJobs();
+    createLoginWindow();
+  } catch (error) {
+    console.error('Error al cerrar sesión:', error);
   }
-  stopCronJobs(); // Detiene los trabajos cron
-  createLoginWindow(); // Vuelve a abrir la ventana de login
 });
 
 ipcMain.on('login-success', () => {

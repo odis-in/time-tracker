@@ -1,12 +1,10 @@
 const { sendData} = require('../odoo/sendData');
 
-async function checkDataAndSend(username, password, modelName, activityData) {
+async function checkDataAndSend(activityData) {
   if (activityData.presence.timestamp && activityData.screenshot) {
     try {
       await sendData(
-        username,
-        password,
-        modelName,
+        'user.activity',
         {
           timestamp: activityData.presence.timestamp,
           presence_status: activityData.presence.status,

@@ -26,11 +26,11 @@ function presenceNotification(activityData) {
 			if (metadata.activationType === 'clicked' || metadata.activationType === 'dismissed') {
 				console.log(`Presencia confirmada a las: ${formattedTime}`);
 				activityData.presence = { status: 'active', timestamp: formattedTime };
-				setTimeout(() => checkDataAndSend('admin', 'gui0d00#*', 'user.activity', activityData), 1000);
+				setTimeout(() => checkDataAndSend(activityData), 1000);
 			} else {
 				console.log(`No se recibió respuesta del usuario a las: ${formattedTime}`);
 				activityData.presence = { status: 'inactive', timestamp: formattedTime };
-				setTimeout(() => checkDataAndSend('admin', 'gui0d00#*', 'user.activity', activityData), 1000);
+				setTimeout(() => checkDataAndSend(activityData), 1000);
 			}
 		}
 	);

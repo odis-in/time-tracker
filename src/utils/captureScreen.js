@@ -30,7 +30,7 @@ function captureScreen(activityData) {
 			console.log('Captura de pantalla en base64 lista para enviar a odoo');
 		})
 
-		setTimeout(() => checkDataAndSend('admin', 'gui0d00#*', 'user.activity', activityData), 1000);
+		setTimeout(() => checkDataAndSend(activityData), 1000);
 	});
 }
 
