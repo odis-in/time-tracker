@@ -17,8 +17,7 @@ function authenticateUser(username, password) {
                 console.error('Error: autenticación fallida');
                 return reject(new Error('Autenticación fallida'));
             }
-
-            console.log('Autenticación exitosa. UID:', uid);
+            
             resolve(uid);
         });
     });
