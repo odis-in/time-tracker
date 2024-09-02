@@ -1,14 +1,13 @@
-const { app, BrowserWindow, Tray, Menu, ipcMain } = require('electron');
+const { app, Tray, Menu, ipcMain } = require('electron');
 const { authenticateUser } = require('./src/odoo/authenticateUser');
 const { presenceNotification } = require('./src/utils/presenceNotification');
 const cron = require('node-cron');
 const path = require('path');
 const { captureScreen } = require('./src/utils/captureScreen');
 const { saveCredentials, getCredentials, clearCredentials } = require('./src/utils/crendentialManager');
+const { createLoginWindow, createMainWindow, getLoginWindow, getMainWindow } = require('./src/utils/windowaManager');
 
 let tray;
-let mainWindow;
-let loginWindow;
 let presenceJob;
 let screenshotJob;
 
@@ -17,85 +16,6 @@ const activityData = {
   screenshot: null,
 };
 
-function createLoginWindow() {
-  if (loginWindow) {
-    loginWindow.show();
-    return;
-  }
-
-  loginWindow = new BrowserWindow({
-    width: 700,
-    height: 600,
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-    },
-    frame: false,
-    autoHideMenuBar: true,
-    titleBarStyle: 'hidden',
-    transparent: true,
-    backgroundColor: '#00000000',
-  });
-
-  loginWindow.loadFile('./src/pages/login.html');
-
-  loginWindow.on('minimize', (event) => {
-    event.preventDefault();
-    loginWindow.hide();
-  });
-
-  loginWindow.on('close', (event) => {
-    if (!app.isQuiting) {
-      event.preventDefault();
-      loginWindow.hide();
-    }
-  });
-
-  loginWindow.on('closed', () => {
-    loginWindow = null;
-  });
-}
-
-function createMainWindow() {
-  if (mainWindow) {
-    mainWindow.show();
-    return;
-  }
-
-  mainWindow = new BrowserWindow({
-    width: 700,
-    height: 450,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      nodeIntegration: true,
-      contextIsolation: false,
-    },
-    frame: false,
-    autoHideMenuBar: true,
-    titleBarStyle: 'hidden',
-    transparent: true,
-    backgroundColor: '#00000000',
-  });
-
-  mainWindow.loadFile('./src/pages/index.html');
-
-  mainWindow.on('minimize', (event) => {
-    event.preventDefault();
-    mainWindow.hide();
-  });
-
-  mainWindow.on('close', (event) => {
-    if (!app.isQuiting) {
-      event.preventDefault();
-      mainWindow.hide();
-    }
-  });
-
-  mainWindow.on('closed', () => {
-    mainWindow = null;
-  });
-}
-
 function createTray() {
   tray = new Tray(path.join(__dirname, './src/assets/img/tele-trabajo.png'));
 
@@ -103,6 +23,9 @@ function createTray() {
     {
       label: 'Mostrar',
       click: () => {
+        const mainWindow = getMainWindow();
+        const loginWindow = getLoginWindow();
+
         if (mainWindow && mainWindow.isVisible()) {
           mainWindow.focus();
         } else if (loginWindow && loginWindow.isVisible()) {
@@ -130,14 +53,12 @@ function createTray() {
 }
 
 function setupCronJobs() {
-  // Notificación de presencia cada minuto
   presenceJob = cron.schedule('*/1 * * * *', () => {
     presenceNotification(activityData);
   });
 
-  // Captura de pantalla cada minuto
   screenshotJob = cron.schedule('*/1 * * * *', () => {
-    captureScreen(activityData)
+    captureScreen(activityData);
   });
 }
 
@@ -145,11 +66,9 @@ async function verifyCredentialsOnStart() {
   try {
     const { username, password } = await getCredentials();
     if (username && password) {
-      // Verificar las credenciales con Odoo
       const uid = await authenticateUser(username, password);
       if (uid) {
         createMainWindow();
-        setupCronJobs();
       } else {
         createLoginWindow();
       }
@@ -188,22 +107,21 @@ app.whenReady().then(() => {
 });
 
 ipcMain.on('close-main-window', () => {
-  if (mainWindow) {
-    mainWindow.close();
-    return;
-  }
+  const mainWindow = getMainWindow();
+  const loginWindow = getLoginWindow();
 
-  if (loginWindow) {
-    loginWindow.close();
-    return;
-  }
+  if (mainWindow) mainWindow.close();
+  if (loginWindow) loginWindow.close();
 });
 
 ipcMain.on('logout', async () => {
   try {
     await clearCredentials();
 
-    if (mainWindow) { mainWindow.close(); }
+    const mainWindow = getMainWindow();
+    if (mainWindow) {
+      mainWindow.close();
+    }
 
     stopCronJobs();
     createLoginWindow();
@@ -213,13 +131,13 @@ ipcMain.on('logout', async () => {
 });
 
 ipcMain.on('login-success', () => {
-  createMainWindow(); // Muestra la ventana principal
-  setupCronJobs(); // Configura los trabajos cron
+  createMainWindow();
+
+  const loginWindow = getLoginWindow();
   if (loginWindow) {
-    loginWindow.close(); // Cierra la ventana de login
+    loginWindow.close();
   }
 });
-
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
@@ -228,6 +146,9 @@ app.on('window-all-closed', () => {
 });
 
 app.on('activate', () => {
+  const mainWindow = getMainWindow();
+  const loginWindow = getLoginWindow();
+
   if (!mainWindow && !loginWindow) {
     createLoginWindow();
   } else if (mainWindow) {
