@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, session } = require('electron');
 const path = require('path');
 
 let loginWindow;
@@ -14,7 +14,7 @@ function createLoginWindow() {
     width: 700,
     height: 600,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, '../preload.js'),
       nodeIntegration: true,
       contextIsolation: false,
     },
@@ -56,7 +56,7 @@ function createMainWindow() {
     width: 700,
     height: 450,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, '../preload.js'),
       nodeIntegration: true,
       contextIsolation: false,
     },
@@ -68,6 +68,8 @@ function createMainWindow() {
   });
 
   mainWindow.loadFile('./src/pages/index.html');
+
+  // mainWindow.webContents.openDevTools();
 
   mainWindow.on('minimize', (event) => {
     event.preventDefault();

@@ -64,15 +64,15 @@ function setupCronJobs() {
 
 async function verifyCredentialsOnStart() {
   try {
-    const { username, password } = await getCredentials();
+    const { username, password } =  await getCredentials();
+
+    console.log(username, password); 
     if (username && password) {
-      const uid = await authenticateUser(username, password);
-      if (uid) {
+      // const uid =  authenticateUser(username, password);
+      // if (uid) {
+       
         createMainWindow();
         setupCronJobs();
-      } else {
-        createLoginWindow();
-      }
     } else {
       createLoginWindow();
     }
