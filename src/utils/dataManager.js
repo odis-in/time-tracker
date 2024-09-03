@@ -53,4 +53,4 @@ async function getStoredData() {
     return store.get('offlineData') || []; // Obtener datos almacenados o un array vacío
 }
 
-module.exports = { handleData, sendLocalData , getStoredData };
+module.exports = { handleData };
