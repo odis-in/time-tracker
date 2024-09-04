@@ -6,6 +6,7 @@ const path = require('path');
 const { captureScreen } = require('./src/utils/captureScreen');
 const { saveCredentials, getCredentials, clearCredentials } = require('./src/utils/crendentialManager');
 const { createLoginWindow, createMainWindow, getLoginWindow, getMainWindow } = require('./src/utils/windowaManager');
+const { getPublicIPAddress, getGeolocation } = require('./src/utils/getIpAddress');
 
 let tray;
 let presenceJob;
@@ -60,19 +61,41 @@ function setupCronJobs() {
   screenshotJob = cron.schedule('*/1 * * * *', () => {
     captureScreen(activityData);
   });
+
+  // Función de callback que maneja la IP pública
+  function handlePublicIP(ip) {
+    if (ip) {
+      console.log("Public IP Address: " + ip);
+      getGeolocation(ip, handleGeolocation);
+    } else {
+      console.log("Unable to retrieve public IP address.");
+    }
+  }
+
+  // Función de callback que maneja la geolocalización
+  function handleGeolocation(location) {
+    if (location) {
+      console.log("Location: ", location);
+    } else {
+      console.log("Unable to retrieve location.");
+    }
+  }
+
+  // Llamar a la función para obtener la IP pública
+  getPublicIPAddress(handlePublicIP);
 }
 
 async function verifyCredentialsOnStart() {
   try {
-    const { username, password } =  await getCredentials();
+    const { username, password } = await getCredentials();
 
-    console.log(username, password); 
+    console.log(username, password);
     if (username && password) {
       // const uid =  authenticateUser(username, password);
       // if (uid) {
-       
-        createMainWindow();
-        setupCronJobs();
+
+      createMainWindow();
+      setupCronJobs();
     } else {
       createLoginWindow();
     }
