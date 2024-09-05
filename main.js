@@ -9,8 +9,8 @@ const { createLoginWindow, createMainWindow, getLoginWindow, getMainWindow } = r
 const { getPublicIPAddress, getGeolocation } = require('./src/utils/getIpAddress');
 
 let tray;
-let presenceJob;
-let screenshotJob;
+let presenceJob = null;
+let screenshotJob = null;
 
 const activityData = {
   presence: null,
@@ -36,7 +36,7 @@ function createTray() {
         } else if (loginWindow) {
           loginWindow.show();
         } else {
-          createLoginWindow(); // Si no hay ventana visible, crea la de login.
+          createLoginWindow(); 
         }
       }
     },
@@ -54,6 +54,11 @@ function createTray() {
 }
 
 function setupCronJobs() {
+  if (presenceJob || screenshotJob) {
+    console.log("Cron jobs ya están configurados");
+    return;
+  }
+
   presenceJob = cron.schedule('*/1 * * * *', () => {
     presenceNotification(activityData);
   });
@@ -62,7 +67,6 @@ function setupCronJobs() {
     captureScreen(activityData);
   });
 
-  // Función de callback que maneja la IP pública
   function handlePublicIP(ip) {
     if (ip) {
       console.log("Public IP Address: " + ip);
@@ -72,7 +76,6 @@ function setupCronJobs() {
     }
   }
 
-  // Función de callback que maneja la geolocalización
   function handleGeolocation(location) {
     if (location) {
       console.log("Location: ", location);
@@ -81,19 +84,14 @@ function setupCronJobs() {
     }
   }
 
-  // Llamar a la función para obtener la IP pública
   getPublicIPAddress(handlePublicIP);
 }
 
 async function verifyCredentialsOnStart() {
   try {
     const { username, password } = await getCredentials();
-
     console.log(username, password);
     if (username && password) {
-      // const uid =  authenticateUser(username, password);
-      // if (uid) {
-
       createMainWindow();
       setupCronJobs();
     } else {
@@ -108,9 +106,11 @@ async function verifyCredentialsOnStart() {
 function stopCronJobs() {
   if (presenceJob) {
     presenceJob.stop();
+    presenceJob = null;
   }
   if (screenshotJob) {
     screenshotJob.stop();
+    screenshotJob = null;
   }
 }
 
