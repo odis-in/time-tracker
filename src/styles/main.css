@@ -1,7 +1,7 @@
 body {
   border-radius: 20px;
-  padding: 0; 
-  margin: 0; 
+  padding: 0;
+  margin: 0;
   overflow: hidden;
   height: 100vh;
   display: flex;
@@ -13,23 +13,26 @@ body {
 
 .app-container {
   font-family: Arial, sans-serif;
-  background-color: #f0f0f0; 
-  border-radius: 20px; 
+  background-color: #f0f0f0;
+  border-radius: 20px;
   padding: 20px;
-  margin: 40px auto; 
-  width: 90%; 
-  height: 90%; 
+  margin: 40px auto;
+  width: 90%;
+  height: 90%;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-  overflow: hidden; 
-  position: relative; 
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .login-container {
-  background-color: white; 
-  border-radius: 15px; 
+  background-color: white;
+  border-radius: 15px;
   padding: 30px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); 
-  max-width: 400px; 
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  width: 400px;
   margin: 100px auto;
 }
 
@@ -43,23 +46,24 @@ h1 {
   margin-bottom: 15px;
   display: flex;
   flex-direction: column;
-  align-items: flex-start; /* Alinea los elementos a la izquierda */
+  align-items: flex-start; 
 }
 
 label {
   margin-bottom: 5px;
-  align-self: flex-start; /* Alinea el label a la izquierda dentro del form-group */
-  font-weight: normal; /* Estilo normal para los labels */
+  align-self: flex-start; 
+  font-weight: normal; 
 }
 
 input[type="text"],
 input[type="password"],
+select,
 button {
-  width: 100%; /* Asegura que el ancho sea 100% del contenedor */
+  width: 100%; 
   padding: 10px;
   border: 1px solid #ccc;
   border-radius: 4px;
-  box-sizing: border-box; /* Incluye el padding y el borde dentro del ancho total */
+  box-sizing: border-box; 
 }
 
 button {
@@ -67,7 +71,7 @@ button {
   color: #fff;
   font-size: 16px;
   cursor: pointer;
-  border: none; /* Elimina el borde del botón */
+  border: none; 
 }
 
 button:hover {
@@ -84,7 +88,7 @@ button:hover {
 .window-controls svg {
   width: 24px;
   height: 24px;
-  color: #4ace16; /* Cambia el color según sea necesario */
+  color: #4ace16; 
 }
 
 .window-btn {
