@@ -1,8 +1,8 @@
 require('dotenv').config();
 const xmlrpc = require('xmlrpc');
-const { db } = require('./config');
+// const { db } = require('./config');
 
-function authenticateUser(username, password, url) {
+function authenticateUser(username, password, url, db) {
 
     const common = xmlrpc.createClient({ url: url + '/xmlrpc/2/common' });
     console.log('Autenticando con Odoo...');

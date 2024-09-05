@@ -1,10 +1,10 @@
 const xmlrpc = require('xmlrpc');
-const { db } = require('./config');
+// const { db } = require('./config');
 const { getCredentials } = require('../utils/crendentialManager');
 
 async function sendData(modelName, activityData) {
     try {
-        const { username, password, uid , url } = await getCredentials(['username', 'password', 'uid', 'url']);
+        const { username, password, uid , url, db } = await getCredentials(['username', 'password', 'uid', 'url','db']);
 
         if (!username || !password || !uid || !url) {
             throw new Error('Credenciales no encontradas. Por favor, autentique nuevamente.');

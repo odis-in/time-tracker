@@ -7,10 +7,11 @@ document.getElementById('loginForm').addEventListener('submit', async (event) =>
   const username = formData.get('username');
   const password = formData.get('password');
   const url = formData.get('url');
+  const db = formData.get('db');
   const timeNotification = formData.get('time-notification');
 
   try {
-    const uid = await ipcRenderer.invoke('login', username, password, url, timeNotification);
+    const uid = await ipcRenderer.invoke('login', username, password, url, timeNotification, db);
 
     if (uid) {
       ipcRenderer.send('login-success');
