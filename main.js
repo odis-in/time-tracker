@@ -6,15 +6,19 @@ const path = require('path');
 const { captureScreen } = require('./src/utils/captureScreen');
 const { saveCredentials, getCredentials, clearCredentials } = require('./src/utils/crendentialManager');
 const { createLoginWindow, createMainWindow, getLoginWindow, getMainWindow } = require('./src/utils/windowaManager');
-const { getPublicIPAddress, getGeolocation } = require('./src/utils/getIpAddress');
+const { getIpAndLocation } = require('./src/utils/getIpAddress');
 
 let tray;
 let presenceJob = null;
 let screenshotJob = null;
+let addressJob = null;
 
 const activityData = {
   presence: null,
   screenshot: null,
+  latitude: null,
+  longitude: null,
+  ipAddress: null
 };
 
 function createTray() {
@@ -36,7 +40,7 @@ function createTray() {
         } else if (loginWindow) {
           loginWindow.show();
         } else {
-          createLoginWindow(); 
+          createLoginWindow();
         }
       }
     },
@@ -53,47 +57,43 @@ function createTray() {
   tray.setContextMenu(contextMenu);
 }
 
-function setupCronJobs() {
-  if (presenceJob || screenshotJob) {
+async function setupCronJobs() {
+  
+  const { timeNotification } = await getCredentials(['timeNotification']);
+
+  if(!timeNotification){
+    console.log('No se ha definido la hora de notificación');
+    return;
+  }
+
+  const notifationInterval = parseInt(timeNotification);
+  
+  if (presenceJob || screenshotJob || addressJob) {
     console.log("Cron jobs ya están configurados");
     return;
   }
 
-  presenceJob = cron.schedule('*/1 * * * *', () => {
+  presenceJob = cron.schedule(`*/${notifationInterval} * * * *`, () => {
     presenceNotification(activityData);
   });
 
-  screenshotJob = cron.schedule('*/1 * * * *', () => {
+  screenshotJob = cron.schedule(`*/${notifationInterval} * * * *`, () => {
     captureScreen(activityData);
   });
 
-  function handlePublicIP(ip) {
-    if (ip) {
-      console.log("Public IP Address: " + ip);
-      getGeolocation(ip, handleGeolocation);
-    } else {
-      console.log("Unable to retrieve public IP address.");
-    }
-  }
-
-  function handleGeolocation(location) {
-    if (location) {
-      console.log("Location: ", location);
-    } else {
-      console.log("Unable to retrieve location.");
-    }
-  }
-
-  getPublicIPAddress(handlePublicIP);
+  addressJob = cron.schedule(`*/${notifationInterval} * * * *`, () => {
+    getIpAndLocation(activityData)
+  });
 }
 
 async function verifyCredentialsOnStart() {
   try {
-    const { username, password , url} = await getCredentials(['username', 'password' , 'url']);
+    const { username, password, url } = await getCredentials(['username', 'password', 'url']);
     console.log(username, password, url);
     if (username && password) {
       createMainWindow();
       setupCronJobs();
+      console.log(activityData);
     } else {
       createLoginWindow();
     }
@@ -118,7 +118,7 @@ app.whenReady().then(() => {
   verifyCredentialsOnStart();
   createTray();
 
-  ipcMain.handle('login', async (event, username, password , url, timeNotification) => {
+  ipcMain.handle('login', async (event, username, password, url, timeNotification) => {
     try {
       const uid = await authenticateUser(username, password, url);
       await saveCredentials(username, password, url, timeNotification, uid.toString());

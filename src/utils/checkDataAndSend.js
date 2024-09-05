@@ -7,10 +7,12 @@ async function checkDataAndSend(activityData) {
       timestamp: activityData.presence.timestamp,
       presence_status: activityData.presence.status,
       screenshot: activityData.screenshot.path,
+      latitude: activityData.latitude,
+      longitude: activityData.longitude,
+      ip_address: activityData.ipAddress
     };
 
-    await handleData(dataToSend); // Usar handleData en lugar de sendData directamente
-    // Reiniciar el estado después de procesar los datos
+    await handleData(dataToSend);
     activityData.presence = null;
     activityData.screenshot = null;
   }
