@@ -9,8 +9,20 @@
   <body>
     <div class="app-container">
       <div class="window-controls">
-        <svg id="close" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+        <svg
+          id="close"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke-width="1.5"
+          stroke="currentColor"
+          class="size-6"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M6 18 18 6M6 6l12 12"
+          />
         </svg>
       </div>
 
@@ -25,11 +37,32 @@
             <label for="password">Contraseña:</label>
             <input type="password" id="password" name="password" required />
           </div>
+          <div class="form-group">
+            <label for="url">web:</label>
+            <input type="text" id="url" name="url" required />
+          </div>
+          <div class="form-group">
+            <label for="time-notification">Tiempo de notificaciones</label>
+            <select name="time-notification" id="time-notification">
+              <option value="5">5 minutos</option>
+              <option value="10">10 minutos</option>
+              <option value="15">15 minutos</option>
+              <option value="20">20 minutos</option>
+              <option value="25">25 minutos</option>
+              <option value="30">30 minutos</option>
+              <option value="35">35 minutos</option>
+              <option value="40">40 minutos</option>
+              <option value="45">45 minutos</option>
+              <option value="50">50 minutos</option>
+              <option value="55">55 minutos</option>
+              <option value="60">1 hora</option>
+            </select>
+          </div>
           <button type="submit">Iniciar Sesión</button>
           <div id="error-message" class="error-message"></div>
         </form>
       </div>
     </div>
-    <script src="../scripts/login.js"></script> 
+    <script src="../scripts/login.js"></script>
   </body>
 </html>

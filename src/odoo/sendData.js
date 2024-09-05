@@ -1,16 +1,16 @@
 const xmlrpc = require('xmlrpc');
-const { url, db } = require('./config');
+const { db } = require('./config');
 const { getCredentials } = require('../utils/crendentialManager');
-
-const models = xmlrpc.createClient({ url: `${url}/xmlrpc/2/object` });
 
 async function sendData(modelName, activityData) {
     try {
-        const { username, password, uid } = await getCredentials();
+        const { username, password, uid , url } = await getCredentials(['username', 'password', 'uid', 'url']);
 
-        if (!username || !password || !uid) {
+        if (!username || !password || !uid || !url) {
             throw new Error('Credenciales no encontradas. Por favor, autentique nuevamente.');
         }
+
+        const models = xmlrpc.createClient({ url: `${url}/xmlrpc/2/object` });
 
         activityData.user_id = uid;
 

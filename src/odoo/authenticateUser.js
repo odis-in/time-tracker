@@ -1,9 +1,10 @@
 require('dotenv').config();
 const xmlrpc = require('xmlrpc');
-const {url, db} = require('./config');
-const common = xmlrpc.createClient({ url: url + '/xmlrpc/2/common' });
+const { db } = require('./config');
 
-function authenticateUser(username, password) {
+function authenticateUser(username, password, url) {
+
+    const common = xmlrpc.createClient({ url: url + '/xmlrpc/2/common' });
     console.log('Autenticando con Odoo...');
 
     return new Promise((resolve, reject) => {
@@ -17,7 +18,7 @@ function authenticateUser(username, password) {
                 console.error('Error: autenticación fallida');
                 return reject(new Error('Autenticación fallida'));
             }
-            
+
             resolve(uid);
         });
     });

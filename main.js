@@ -89,8 +89,8 @@ function setupCronJobs() {
 
 async function verifyCredentialsOnStart() {
   try {
-    const { username, password } = await getCredentials();
-    console.log(username, password);
+    const { username, password , url} = await getCredentials(['username', 'password' , 'url']);
+    console.log(username, password, url);
     if (username && password) {
       createMainWindow();
       setupCronJobs();
@@ -118,10 +118,10 @@ app.whenReady().then(() => {
   verifyCredentialsOnStart();
   createTray();
 
-  ipcMain.handle('login', async (event, username, password) => {
+  ipcMain.handle('login', async (event, username, password , url, timeNotification) => {
     try {
-      const uid = await authenticateUser(username, password);
-      await saveCredentials(username, password, uid.toString());
+      const uid = await authenticateUser(username, password, url);
+      await saveCredentials(username, password, url, timeNotification, uid.toString());
       return uid;
     } catch (error) {
       console.error('Error al autenticar con Odoo:', error);
