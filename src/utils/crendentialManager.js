@@ -9,7 +9,7 @@ async function saveCredentials(username, password, url, timeNotification, uid, d
     await keytar.setPassword('my-app', 'db', db);
 }
 
-async function getCredentials(credentialsToFetch = ['username', 'password', 'url', 'timeNotification', 'uid']) {
+async function getCredentials(credentialsToFetch = ['username', 'password', 'url', 'timeNotification', 'uid','db']) {
     const credentials = {};
 
     for (const key of credentialsToFetch) {
@@ -20,12 +20,19 @@ async function getCredentials(credentialsToFetch = ['username', 'password', 'url
 }
 
 async function clearCredentials() {
-    await keytar.deletePassword('my-app', 'username');
-    await keytar.deletePassword('my-app', 'password');
-    await keytar.deletePassword('my-app', 'url');
-    await keytar.deletePassword('my-app', 'timeNotification');
-    await keytar.deletePassword('my-app', 'uid');
-    await keytar.deletePassword('my app', 'db'); 
+    const serviceName = 'my-app'; 
+    const keys = ['username', 'password', 'url', 'timeNotification', 'uid','db']; 
+
+    for (const key of keys) {
+        try {
+            await keytar.deletePassword(serviceName, key);
+            console.log(`Eliminado ${key} de ${serviceName}`);
+        } catch (error) {
+            console.error(`Error al eliminar ${key}: ${error}`);
+        }
+    }
+
+    console.log('Todas las credenciales han sido eliminadas.');
 }
 
 module.exports = { saveCredentials, getCredentials, clearCredentials };

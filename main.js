@@ -88,8 +88,8 @@ async function setupCronJobs() {
 
 async function verifyCredentialsOnStart() {
   try {
-    const { username, password, url } = await getCredentials(['username', 'password', 'url','db']);
-    console.log(username, password, url);
+    const { username, password, url, db } = await getCredentials(['username', 'password', 'url','db']);
+    console.log(username, password, url,db);
     if (username && password) {
       createMainWindow();
       setupCronJobs();
@@ -106,11 +106,11 @@ async function verifyCredentialsOnStart() {
 function stopCronJobs() {
   if (presenceJob) {
     presenceJob.stop();
-    presenceJob = null;
+    // presenceJob = null;
   }
   if (screenshotJob) {
     screenshotJob.stop();
-    screenshotJob = null;
+    // screenshotJob = null;
   }
 }
 
@@ -141,6 +141,7 @@ ipcMain.on('close-main-window', () => {
 ipcMain.on('logout', async () => {
   try {
     await clearCredentials();
+    console.log('Credenciales eliminadas');
 
     const mainWindow = getMainWindow();
     if (mainWindow) {
