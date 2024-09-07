@@ -1,4 +1,4 @@
-require('dotenv').config();
+// require('dotenv').config();
 const xmlrpc = require('xmlrpc');
 // const { db } = require('./config');
 

@@ -1,22 +1,23 @@
-const { url } = require("../odoo/config");
+const { getCredentials } = require("./crendentialManager");
 
 const checkServerConnection = async () => {
     try {
-        // Realizar una solicitud HEAD para minimizar la carga de datos
+        const { url } = await getCredentials(['url']);
+        console.log('Conectando al servidor:', url);
         const response = await fetch(url, { method: 'HEAD', cache: 'no-cache' });
         if (response.ok) {
             console.log('Conexión exitosa al servidor:', url);
             // document.getElementById('status').innerHTML = 'Conectado';
-            return true; // Conexión exitosa
+            return true; 
         } else {
             console.log('El servidor respondió pero no con un estado de éxito:', response.status);
             // document.getElementById('status').innerHTML = 'Desconectado';
-            return false; // Respuesta del servidor no es exitosa
+            return false; 
         }
     } catch (error) {
         console.error('Error al conectar con el servidor:', error.message);
         // document.getElementById('status').innerHTML = 'Desconectado';
-        return false; // Error de red o de conexión
+        return false; 
     }
 };
 

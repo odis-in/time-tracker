@@ -12,7 +12,7 @@
   "license": "ISC",
   "build": {
     "appId": "com.electron-project",
-    "asar": true,
+    "asar": false,
     "dmg": {
       "contents": [
         {
@@ -44,7 +44,6 @@
   },
   "dependencies": {
     "desktop-screenshot": "^0.1.1",
-    "dotenv": "^16.4.5",
     "electron-store": "^10.0.0",
     "keytar": "^7.9.0",
     "node-cron": "^3.0.3",
