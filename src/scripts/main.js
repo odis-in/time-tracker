@@ -5,6 +5,13 @@ document.addEventListener('DOMContentLoaded', () => {
 	closeButton.addEventListener('click', () => {
 		ipcRenderer.send('close-main-window');
 	});
+
+	const usernameDiv = document.getElementById('username');
+
+	if (usernameDiv) {
+		usernameDiv.textContent = localStorage.getItem('username')
+	}
+
 });
 
 document.getElementById('logout').addEventListener('click', () => {

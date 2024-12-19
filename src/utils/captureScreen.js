@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const screenshot = require('desktop-screenshot');
 const { Buffer } = require('buffer');
-const { checkDataAndSend } = require('./checkDataAndSend');
+// const { checkDataAndSend } = require('./checkDataAndSend');
 
 function captureScreen(activityData) {
 	const desktopPath = path.join(require('os').homedir(), 'Desktop', 'capturas');
@@ -30,7 +30,7 @@ function captureScreen(activityData) {
 			console.log('Captura de pantalla en base64 lista para enviar a odoo');
 		})
 
-		setTimeout(() => checkDataAndSend(activityData), 1000);
+		// setTimeout(() => checkDataAndSend(activityData), 1000);
 	});
 }
 

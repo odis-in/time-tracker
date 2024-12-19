@@ -1,0 +1,2 @@
+compilador
+npm run dist

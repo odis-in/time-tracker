@@ -1,12 +1,14 @@
 const { app, Tray, Menu, ipcMain } = require('electron');
 const { authenticateUser } = require('./src/odoo/authenticateUser');
+const { getClients } = require('./src/odoo/getClients');
 const { presenceNotification } = require('./src/utils/presenceNotification');
 const cron = require('node-cron');
 const path = require('path');
 const { captureScreen } = require('./src/utils/captureScreen');
 const { saveCredentials, getCredentials, clearCredentials } = require('./src/utils/crendentialManager');
-const { createLoginWindow, createMainWindow, getLoginWindow, getMainWindow } = require('./src/utils/windowaManager');
+const { createLoginWindow, createMainWindow, createModalWindow, getLoginWindow, getMainWindow, getModalWindow } = require('./src/utils/windowaManager');
 const { getIpAndLocation } = require('./src/utils/getIPAddress');
+const { checkDataAndSend } = require('./src/utils/checkDataAndSend');
 
 let tray;
 let presenceJob = null;
@@ -18,7 +20,9 @@ const activityData = {
   screenshot: null,
   latitude: null,
   longitude: null,
-  ipAddress: null
+  ipAddress: null,
+  partner_id: null,
+  description: null
 };
 
 const gotTheLock = app.requestSingleInstanceLock();
@@ -99,6 +103,11 @@ if (!gotTheLock) {
 
     presenceJob = cron.schedule(`*/${notifationInterval} * * * *`, () => {
       presenceNotification(activityData);
+      // console.log('prueba modal -------------------------->',activityData.presence);
+      // todo
+      // if (activityData.presence === 'active') {
+      //   createModalWindow();
+      // }
     });
 
     screenshotJob = cron.schedule(`*/${notifationInterval} * * * *`, () => {
@@ -116,6 +125,8 @@ if (!gotTheLock) {
       console.log(username, password, url, db);
       if (username && password) {
         createMainWindow();
+        const clients = await getClients();
+        console.log(clients)
         setupCronJobs();
         console.log(activityData);
       } else {
@@ -144,6 +155,7 @@ if (!gotTheLock) {
       try {
         const uid = await authenticateUser(username, password, url, db);
         await saveCredentials(username, password, url, timeNotification, uid.toString(), db);
+        const clients = await getClients();
         return uid;
       } catch (error) {
         console.error('Error al autenticar con Odoo:', error);
@@ -175,6 +187,19 @@ if (!gotTheLock) {
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
     }
+  });
+
+  ipcMain.on('send-data', (event, client, description) => {
+    const modalWindows = getModalWindow();
+    console.log('Datos recibidos del formulario:', { client, description });
+    
+    activityData.partner_id = client;
+    activityData.description = description;
+    console.log('prueba desde el send-data -------------------------->',activityData);
+    checkDataAndSend(activityData)
+    activityData.partner_id = null;
+    activityData.description = null;
+    modalWindows.close()
   });
 
   ipcMain.on('login-success', () => {

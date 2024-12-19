@@ -1,6 +1,6 @@
 const https = require('https');
 const http = require('http'); // Para pruebas locales
-const { checkDataAndSend } = require('./checkDataAndSend');
+// const { checkDataAndSend } = require('./checkDataAndSend');
 
 // Función para obtener la IP pública usando Promesas
 function getPublicIPAddress() {
@@ -64,7 +64,7 @@ async function getIpAndLocation(activityData) {
     activityData.ipAddress = ip;
     activityData.longitude = location.lon;
     activityData.latitude = location.lat;
-    setTimeout(() => checkDataAndSend(activityData), 1000);
+    // setTimeout(() => checkDataAndSend(activityData), 1000);
   } catch (error) {
     console.error(error);
     return { ip: null, location: null };
