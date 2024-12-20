@@ -9,7 +9,8 @@
   </head>
   <body>
     <div class="app-container-index">
-      <div class="flex items-center justify-between">        <div class="flex items-center gap-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-4">
           <div class="avatar">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
               <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
@@ -30,10 +31,26 @@
       </div>
       <div class="separator"></div>
       
-      <div class="grid gap-2">
-        <div class="text-muted-foreground text-sm">Compañía</div>
-        <div class="font-medium text-lg">Acme Inc.</div>
+      <!-- Nueva tabla de trabajo del día -->
+      <div class="work-day-table">
+        <h2 class="text-lg font-medium mb-2">Lista de trabajo del día</h2>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th>Hora Inicio</th>
+                <th>Hora Final</th>
+                <th>Tiempo</th>
+              </tr>
+            </thead>
+            <tbody id="work-day-tbody">
+              <!-- Las filas serán insertadas dinámicamente -->
+            </tbody>
+          </table>
+        </div>
       </div>
+      
 
       <div class="flex justify-end gap-2 mt-6 button-container">
         <button class="button button-outline" title="Cerrar sesión">
@@ -73,6 +90,7 @@
             <path d="M14 12v.01" />
           </svg>
         </button>
+        <button class="button" id="delete_data">X</button>
       </div>
     </div>
 
@@ -80,3 +98,4 @@
     <script src="../scripts/main.js"></script>
   </body>
 </html>
+

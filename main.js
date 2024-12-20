@@ -1,4 +1,4 @@
-const { app, Tray, Menu, ipcMain } = require('electron');
+const { app, Tray, Menu, ipcMain , BrowserWindow } = require('electron');
 const { authenticateUser } = require('./src/odoo/authenticateUser');
 const { getClients } = require('./src/odoo/getClients');
 const { presenceNotification } = require('./src/utils/presenceNotification');
@@ -9,7 +9,10 @@ const { saveCredentials, getCredentials, clearCredentials } = require('./src/uti
 const { createLoginWindow, createMainWindow, createModalWindow, getLoginWindow, getMainWindow, getModalWindow } = require('./src/utils/windowaManager');
 const { getIpAndLocation } = require('./src/utils/getIPAddress');
 const { checkDataAndSend } = require('./src/utils/checkDataAndSend');
-
+async function getStore() {
+  const { default: Store } = await import('electron-store');
+  return new Store(); 
+}
 let tray;
 let presenceJob = null;
 let screenshotJob = null;
@@ -118,7 +121,7 @@ if (!gotTheLock) {
       getIpAndLocation(activityData)
     });
   }
-
+  
   async function verifyCredentialsOnStart() {
     try {
       const { username, password, url, db } = await getCredentials(['username', 'password', 'url', 'db']);
@@ -126,7 +129,8 @@ if (!gotTheLock) {
       if (username && password) {
         createMainWindow();
         const clients = await getClients();
-        console.log(clients)
+        const store = await getStore();
+        store.set('clients', clients);
         setupCronJobs();
         console.log(activityData);
       } else {
@@ -189,17 +193,58 @@ if (!gotTheLock) {
     }
   });
 
-  ipcMain.on('send-data', (event, client, description) => {
+  ipcMain.on('send-data', async (event, client, description) => {
+    const store = await getStore();
     const modalWindows = getModalWindow();
     console.log('Datos recibidos del formulario:', { client, description });
-    
+    // store.delete('work-day');
+    // console.log('BORRAR DATOS', store.get('work-day'));
     activityData.partner_id = client;
     activityData.description = description;
-    console.log('prueba desde el send-data -------------------------->',activityData);
+    // console.log('prueba desde el send-data -------------------------->',activityData);
+    // console.log('prueba desde el send-data -------------------------->',store.delete('data_info'));
+    // localStorage.setItem('activityData', JSON.stringify(activityData));
+    
+    const client_data = store.get('clients').find(rec => rec.id == client);
+        if (client_data) {
+          console.log('Cliente encontrado:', client_data);
+        } else {
+          console.log('Cliente no encontrado');
+        }
+    const work_day = store.get('work-day') || [];
+    const data_work_day = {
+      client: client_data,
+      activity: activityData.presence
+    }
+    work_day.push(data_work_day);
+    store.set('work-day', work_day);
+
+    BrowserWindow.getAllWindows().forEach(win => {
+      win.webContents.send('work-day-updated', work_day);
+    });
+    
+    console.log('DATOS ACTUALIZADOS ENVIADOS AL PRECESO DE RENDERIZADP')
+    console.log('datos para la actividad diaria de trabajo', store.get('work-day'));
+    
+    console.log(store.get('work-day'));
     checkDataAndSend(activityData)
+    
     activityData.partner_id = null;
     activityData.description = null;
     modalWindows.close()
+  });
+  
+
+  ipcMain.handle('get-work-day', async (event) => {
+    const store = await getStore();
+    const work_day = store.get('work-day') || [];
+    return work_day;
+  });
+
+  ipcMain.on('delete_data', async () => {
+    const store = await getStore();
+    store.delete('work-day');
+    console.log('Datos borrados desde el boton', store.get('work-day'));
   });
 
   ipcMain.on('login-success', () => {

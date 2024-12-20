@@ -32,8 +32,6 @@ async function showClients() {
     }
 }
 
-
-
 document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('loginForm').addEventListener('submit', async (event) => { 
@@ -43,12 +41,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const description = formData.get('description');
         const client = formData.get('client');
         console.log('Datos enviados del formulario:', { client, description });
-        event.target.reset();
+        event.target.querySelector('input[name="description"]').value = '';
         ipcRenderer.send('send-data', client, description);
         
     
     });
 
-});
+    showClients();    
 
-showClients();
+});

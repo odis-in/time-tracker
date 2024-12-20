@@ -145,3 +145,77 @@
 .min-h-screen {
   min-height: 100vh;
 }
+
+/* ... (estilos anteriores sin cambios) ... */
+
+/* Estilos para la tabla de trabajo del día */
+.work-day-table {
+  margin-top: 1.5rem;
+}
+
+.table-container {
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+}
+
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+
+th, td {
+  border: 1px solid var(--border-color);
+  border-bottom: none;
+  border-right: none;
+  padding: 0.75rem;
+  text-align: left;
+}
+
+th {
+  background-color: var(--background-color);
+  font-weight: 600;
+  position: relative;
+  background-clip: padding-box;
+}
+
+th:last-child, td:last-child {
+  border-right: 1px solid var(--border-color);
+}
+
+tr:last-child td {
+  border-bottom: 1px solid var(--border-color);
+}
+
+tr:nth-child(even) {
+  background-color: var(--background-color);
+}
+
+/* Estilos responsivos para la tabla */
+@media (max-width: 640px) {
+  table {
+    font-size: 0.875rem;
+  }
+
+  th, td {
+    padding: 0.5rem;
+  }
+}
+
+.input-cell {
+    border: none; /* Quitar el borde del input */
+    background: transparent; /* Hacer que el fondo sea transparente */
+    width: 100%; /* Hacer que el input ocupe todo el ancho de la celda */
+    text-align: center; /* Centrar el texto dentro del input */
+    padding: 4px 8px; /* Establecer un padding adecuado */
+    box-sizing: border-box; /* Asegurarse de que el padding no afecte el tamaño */
+    font-size: 14px; /* Ajustar el tamaño de la fuente */
+}
+
+.input-cell:focus {
+    outline: none; /* Quitar el contorno cuando el input está en foco */
+}
