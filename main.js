@@ -106,11 +106,6 @@ if (!gotTheLock) {
 
     presenceJob = cron.schedule(`*/${notifationInterval} * * * *`, () => {
       presenceNotification(activityData);
-      // console.log('prueba modal -------------------------->',activityData.presence);
-      // todo
-      // if (activityData.presence === 'active') {
-      //   createModalWindow();
-      // }
     });
 
     screenshotJob = cron.schedule(`*/${notifationInterval} * * * *`, () => {
@@ -125,14 +120,12 @@ if (!gotTheLock) {
   async function verifyCredentialsOnStart() {
     try {
       const { username, password, url, db } = await getCredentials(['username', 'password', 'url', 'db']);
-      console.log(username, password, url, db);
       if (username && password) {
         createMainWindow();
         const clients = await getClients();
         const store = await getStore();
         store.set('clients', clients);
         setupCronJobs();
-        console.log(activityData);
       } else {
         createLoginWindow();
       }
@@ -196,25 +189,15 @@ if (!gotTheLock) {
   ipcMain.on('send-data', async (event, client, description) => {
     const store = await getStore();
     const modalWindows = getModalWindow();
-    console.log('Datos recibidos del formulario:', { client, description });
-    // store.delete('work-day');
-    // console.log('BORRAR DATOS', store.get('work-day'));
     activityData.partner_id = client;
     activityData.description = description;
-    // console.log('prueba desde el send-data -------------------------->',activityData);
-    // console.log('prueba desde el send-data -------------------------->',store.delete('data_info'));
-    // localStorage.setItem('activityData', JSON.stringify(activityData));
     
     const client_data = store.get('clients').find(rec => rec.id == client);
-        if (client_data) {
-          console.log('Cliente encontrado:', client_data);
-        } else {
-          console.log('Cliente no encontrado');
-        }
     const work_day = store.get('work-day') || [];
+    endWork = new Date();
     const data_work_day = {
-      client: client_data,
-      activity: activityData.presence
+      client: client_data.name,
+      startWork: activityData.presence.timestamp,
     }
     work_day.push(data_work_day);
     store.set('work-day', work_day);
@@ -222,12 +205,7 @@ if (!gotTheLock) {
     BrowserWindow.getAllWindows().forEach(win => {
       win.webContents.send('work-day-updated', work_day);
     });
-    
-    console.log('DATOS ACTUALIZADOS ENVIADOS AL PRECESO DE RENDERIZADP')
-    console.log('datos para la actividad diaria de trabajo', store.get('work-day'));
-    
-    console.log(store.get('work-day'));
-    checkDataAndSend(activityData)
+    // checkDataAndSend(activityData)
     
     activityData.partner_id = null;
     activityData.description = null;

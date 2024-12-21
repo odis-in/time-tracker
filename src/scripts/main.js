@@ -22,34 +22,49 @@ function calculateTimeDifference(time1, time2) {
 
 async function loadWorkDayData() {
 	try {
-		const workDayData = await ipcRenderer.invoke('get-work-day');
-		console.log('Datos del día de trabajo lado del frontend:', workDayData);
+		const workDayData = await ipcRenderer.invoke('get-work-day')
 		const tbody = document.getElementById('work-day-tbody');
 		tbody.innerHTML = '';
 	
 		if (workDayData && workDayData.length > 0) {
+			lastClient = null;
+			lastRow = null;
+			lastEndTime = null;
+
 			workDayData.forEach((item, index) => {
 				const row = document.createElement('tr');
-				const startTime = item.activity.timestamp.split(' ')[1];
-				
+				let startTime = item.startWork.split(' ')[1];
+			
 				let endTime;
 				if (index < workDayData.length - 1) {
-					
-					endTime = workDayData[index + 1].activity.timestamp.split(' ')[1];
+					endTime = workDayData[index + 1].startWork.split(' ')[1];
 				} else {
-					
 					endTime = '00:00:00';
 				}
-	
-				const timeWorked = calculateTimeDifference(startTime, endTime);
-	
-				row.innerHTML = `
-					<td>${item.client.name}</td>
-					<td>${startTime}</td>
-					<td>${endTime}</td>
-					<td>${timeWorked} h</td>
-				`;
-	
+			
+				
+				let timeWorked = calculateTimeDifference(startTime, endTime);
+			
+				if (lastClient === item.client) {
+					
+					startTime = lastRow.children[1].textContent;  registrada
+					endTime = workDayData[index + 1].startWork.split(' ')[1];
+					lastRow.children[2].textContent = endTime;
+					lastRow.children[3].textContent = calculateTimeDifference(startTime, endTime);
+			
+				} else {
+					
+					row.innerHTML = `
+						<td>${item.client}</td>
+						<td>${startTime}</td>
+						<td>${endTime}</td>
+						<td>${timeWorked}</td>
+					`;
+					lastClient = item.client;   
+					lastEndTime = endTime;      
+					lastRow = row;              
+				}
+			
 				tbody.appendChild(row);
 			});
 		} else {
