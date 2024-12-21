@@ -219,3 +219,17 @@ tr:nth-child(even) {
 .input-cell:focus {
     outline: none; /* Quitar el contorno cuando el input está en foco */
 }
+
+.table-container {
+  max-height: 250px;  /* Altura máxima visible del contenedor */
+  overflow-y: auto;   /* Activar el desplazamiento vertical */
+  border: 1px solid #ddd;  /* Agregar borde opcional */
+}
+
+/* Si deseas que el encabezado de la tabla se quede fijo */
+#work-day-table thead {
+  position: sticky;
+  top: 0;
+  background-color: #fff;
+  z-index: 1;  /* Asegura que el encabezado quede por encima del contenido */
+}
