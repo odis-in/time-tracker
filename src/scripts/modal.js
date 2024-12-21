@@ -4,7 +4,9 @@ const { ipcRenderer } = require('electron');
 async function showClients() {
     try {
         const clients = await getClients();
+        console.log(clients); 
 
+        
         const clientSelect = document.getElementById('client');
 
         if (!clients || clients.length === 0) {
@@ -38,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const formData = new FormData(event.target);
         const description = formData.get('description');
         const client = formData.get('client');
+        console.log('Datos enviados del formulario:', { client, description });
         event.target.querySelector('input[name="description"]').value = '';
         ipcRenderer.send('send-data', client, description);
         

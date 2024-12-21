@@ -1,7 +1,7 @@
 const { handleData } = require('./dataManager');
 
 async function checkDataAndSend(activityData) {
-  
+  // console.log('prueba desde checkDataAndSend -------------------------->',activityData);
   if (activityData.presence && activityData.screenshot && activityData.partner_id) {
     const dataToSend = {
       timestamp: activityData.presence.timestamp,
@@ -18,6 +18,7 @@ async function checkDataAndSend(activityData) {
     activityData.presence = null;
     activityData.screenshot = null;
   } else {
+    // console.log('prueba desde checkDataAndSend False-------------------------->',activityData);
     const dataToSend = {
       timestamp: activityData.presence.timestamp,
       presence_status: activityData.presence.status,

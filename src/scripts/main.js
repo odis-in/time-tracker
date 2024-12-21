@@ -42,30 +42,36 @@ async function loadWorkDayData() {
 					endTime = '00:00:00';
 				}
 			
-				
+				// Calcula la diferencia de tiempo
 				let timeWorked = calculateTimeDifference(startTime, endTime);
 			
 				if (lastClient === item.client) {
-					
-					startTime = lastRow.children[1].textContent;  registrada
+					// Si es el mismo cliente, actualiza la hora de fin en la fila anterior
+					startTime = lastRow.children[1].textContent;  // Mantiene la primera hora de inicio registrada
 					endTime = workDayData[index + 1].startWork.split(' ')[1];
 					lastRow.children[2].textContent = endTime;
 					lastRow.children[3].textContent = calculateTimeDifference(startTime, endTime);
 			
 				} else {
-					
+					// Si es un nuevo cliente, crea una nueva fila con los valores actuales
 					row.innerHTML = `
 						<td>${item.client}</td>
 						<td>${startTime}</td>
 						<td>${endTime}</td>
 						<td>${timeWorked}</td>
 					`;
-					lastClient = item.client;   
-					lastEndTime = endTime;      
-					lastRow = row;              
+					lastClient = item.client;   // Guarda el cliente actual
+					lastEndTime = endTime;      // Guarda la última hora de fin
+					lastRow = row;              // Guarda la última fila creada
 				}
 			
 				tbody.appendChild(row);
+			
+				// Opcional: Imprime para depuración
+				console.log('3333333333333333333333333333', workDayData);
+				const test_worker = calculateTimeDifference(startTime, endTime);
+				console.log('time---------------------------->', startTime, endTime, test_worker);
+				console.log('lastRow-------------------->', lastRow);
 			});
 		} else {
 			const emptyRow = document.createElement('tr');
