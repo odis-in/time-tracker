@@ -106,11 +106,6 @@ if (!gotTheLock) {
 
     presenceJob = cron.schedule(`*/${notifationInterval} * * * *`, () => {
       presenceNotification(activityData);
-      // console.log('prueba modal -------------------------->',activityData.presence);
-      // todo
-      // if (activityData.presence === 'active') {
-      //   createModalWindow();
-      // }
     });
 
     screenshotJob = cron.schedule(`*/${notifationInterval} * * * *`, () => {
@@ -197,13 +192,8 @@ if (!gotTheLock) {
     const store = await getStore();
     const modalWindows = getModalWindow();
     console.log('Datos recibidos del formulario:', { client, description });
-    // store.delete('work-day');
-    // console.log('BORRAR DATOS', store.get('work-day'));
     activityData.partner_id = client;
     activityData.description = description;
-    // console.log('prueba desde el send-data -------------------------->',activityData);
-    // console.log('prueba desde el send-data -------------------------->',store.delete('data_info'));
-    // localStorage.setItem('activityData', JSON.stringify(activityData));
     
     const client_data = store.get('clients').find(rec => rec.id == client);
         if (client_data) {

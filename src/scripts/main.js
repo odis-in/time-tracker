@@ -3,6 +3,8 @@ const { ipcRenderer } = require('electron');
 // Función que se ejecuta cuando se hace clic en "Editar"
 function editRow(button) {
 	const row = button.closest('tr');
+	//obtener indice de la celda seleccianda
+	
 	const startTimeCell = row.querySelector('.start-time');
 	const endTimeCell = row.querySelector('.end-time');
   
@@ -29,11 +31,10 @@ function editRow(button) {
 	// Actualiza las celdas con los nuevos valores
 	row.querySelector('.start-time').textContent = startInput.value;
 	row.querySelector('.end-time').textContent = endInput.value;
-  
+	
 	// Actualiza los datos en localStorage
 	const workDayData = JSON.parse(localStorage.getItem('workDayData'));
 	const clientName = row.querySelector('td:first-child').textContent;
-  
 	const updatedData = workDayData.map(item => {
 	  if (item.client === clientName) {
 		return {
@@ -43,6 +44,8 @@ function editRow(button) {
 		  timeWorked: calculateTimeDifference(startInput.value, endInput.value)
 		};
 	  }
+
+	row.querySelector('.time-work').textContent = calculateTimeDifference(startInput.value, endInput.value);
 	  return item;
 	});
   
@@ -86,68 +89,90 @@ function calculateTimeDifference(time1, time2) {
 }
 
 
+
 async function loadWorkDayData() {
 	try {
-	  const workDayData = await ipcRenderer.invoke('get-work-day');
-	  const tbody = document.getElementById('work-day-tbody');
-	  tbody.innerHTML = '';
-  
-	  if (workDayData && workDayData.length > 0) {
-		const reformattedData = []; // Array que guardará el nuevo objeto
-  
-		workDayData.forEach((item, index) => {
-		  const row = document.createElement('tr');
-		  let startTime = item.startWork.split(' ')[1]; // Solo la hora de inicio
-		  let endTime;
-  
-		  // Determinamos la hora de fin
-		  if (index < workDayData.length - 1) {
-			endTime = workDayData[index + 1].startWork.split(' ')[1];
-		  } else {
-			endTime = '00:00:00'; // Última entrada, hora de fin por defecto
-		  }
-  
-		  // Calculamos las horas trabajadas
-		  let timeWorked = calculateTimeDifference(startTime, endTime);
-  
-		  // Crear un objeto con la nueva estructura
-		  const workDataObject = {
-			client: item.client,   // Cliente
-			startWork: startTime,  // Hora de inicio
-			endWork: endTime,      // Hora de fin
-			timeWorked: timeWorked // Tiempo trabajado
-		  };
-  
-		  // Añadir el objeto al array
-		  reformattedData.push(workDataObject);
-  
-		  // Crear la fila para la tabla HTML
-		  row.innerHTML = `
-			<td>${item.client}</td>
-			<td class="start-time">${startTime}</td>
-			<td class="end-time">${endTime}</td>
-			<td>${timeWorked}</td>
-			<td>
-			  <button class="edit-btn" onclick="editRow(this)">Editar</button>
-			</td>
-		  `;
-  
-		  tbody.appendChild(row);
-		});
-  
-		// Guardar los datos procesados en localStorage
-		localStorage.setItem('workDayData', JSON.stringify(reformattedData));
-	  } else {
-		const emptyRow = document.createElement('tr');
-		emptyRow.innerHTML = `<td colspan="4">No hay datos disponibles</td>`;
-		tbody.appendChild(emptyRow);
-	  }
+		const workDayData = await ipcRenderer.invoke('get-work-day')
+		const tbody = document.getElementById('work-day-tbody');
+		tbody.innerHTML = '';
+	
+		if (workDayData && workDayData.length > 0) {
+			lastClient = null;
+			lastRow = null;
+			lastEndTime = null;
+			const reformattedData = [];
+			workDayData.forEach((item, index) => {
+				const row = document.createElement('tr');
+				let startTime = item.startWork.split(' ')[1];
+			
+				let endTime;
+				if (index < workDayData.length - 1) {
+					endTime = workDayData[index + 1].startWork.split(' ')[1];
+				} else if (lastClient == item.client) {
+					endTime = item.startWork.split(' ')[1];
+				} else {
+					endTime = '00:00:00';
+				}
+			
+				
+				let timeWorked = calculateTimeDifference(startTime, endTime);
+
+				
+				
+				if (lastClient === item.client) {
+					
+					startTime = lastRow.children[1].textContent;
+					timeWorked = calculateTimeDifference(startTime, endTime);
+					// endTime = workDayData[index + 1].startWork.split(' ')[1];
+					lastRow.children[2].textContent = endTime;
+					lastRow.children[3].textContent = timeWorked;
+
+					reformattedData[reformattedData.length - 1].endWork = endTime;
+					reformattedData[reformattedData.length - 1].timeWorked = timeWorked
+				} else {
+					row.innerHTML = `
+						<td>${item.client}</td>
+						<td class="start-time">${startTime}</td>
+						<td class="end-time">${endTime}</td>
+						<td class="time-work">${timeWorked}</td>
+						<td>
+			  				<button class="edit-btn" onclick="editRow(this)">Editar</button>
+						</td>`
+					;
+
+					const workDataObject = {
+						client: item.client,   
+						startWork: startTime,  
+						endWork: endTime,     
+						timeWorked: timeWorked 
+					  };
+
+					reformattedData.push(workDataObject)
+					
+					lastClient = item.client;   
+					lastEndTime = endTime;      
+					lastRow = row;              
+				}
+				
+				tbody.appendChild(row);
+			
+			});
+			if (reformattedData.length > 0) {
+				localStorage.setItem('workDayData', JSON.stringify(reformattedData));
+			}
+		} else {
+			const emptyRow = document.createElement('tr');
+			emptyRow.innerHTML = `<td colspan="4">No hay datos disponibles</td>`;
+			tbody.appendChild(emptyRow);
+		}
 	} catch (error) {
-	  console.error('Error al cargar los datos de trabajo del día:', error);
+		console.error('Error al cargar los datos de trabajo del día:', error);
 	}
-  }
-  
-  function renderWorkDayData(workDayData) {
+	
+}
+
+
+function renderWorkDayData(workDayData) {
 	const tbody = document.getElementById('work-day-tbody');
 	tbody.innerHTML = '';
   
@@ -157,7 +182,7 @@ async function loadWorkDayData() {
 		<td>${item.client}</td>
 		<td class="start-time">${item.startWork}</td>
 		<td class="end-time">${item.endWork}</td>
-		<td>${item.timeWorked}</td>
+		<td class="time-work">${item.timeWorked}</td>
 		<td>
 		  <button class="edit-btn" onclick="editRow(this)">Editar</button>
 		</td>
@@ -165,7 +190,7 @@ async function loadWorkDayData() {
 	  tbody.appendChild(row);
 	});
   }
-  
+
 document.addEventListener('DOMContentLoaded', () => {
 	const closeButton = document.getElementById('close');
 	closeButton.addEventListener('click', () => {
@@ -178,22 +203,21 @@ document.addEventListener('DOMContentLoaded', () => {
 		usernameDiv.textContent = localStorage.getItem('username')
 	}
 
-	// loadWorkDayData();
+	loadWorkDayData();
 
-	// ipcRenderer.on('work-day-updated', () => {
+	ipcRenderer.on('work-day-updated', () => {
+		loadWorkDayData();
+	});
+
+	// const storedData = localStorage.getItem('workDayData');
+
+	// if (storedData) {
+	// 	const workDayData = JSON.parse(storedData);
+	// 	renderWorkDayData(workDayData);
+	//   } else {
+		
 	// 	loadWorkDayData();
-	// });
-
-	const storedData = localStorage.getItem('workDayData');
-
-	if (storedData) {
-	  // Si hay datos en localStorage, los usamos
-	  const workDayData = JSON.parse(storedData);
-	  renderWorkDayData(workDayData);
-	} else {
-	  // Si no hay datos en localStorage, los obtenemos del ipcRenderer
-	  loadWorkDayData();
-	}
+	//   }
 
 });
 
@@ -204,4 +228,5 @@ document.getElementById('logout').addEventListener('click', () => {
 
 document.getElementById('delete_data').addEventListener('click', () => { 
 	ipcRenderer.send('delete_data');
+	localStorage.removeItem('workDayData');
 });
