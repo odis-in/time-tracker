@@ -203,21 +203,21 @@ document.addEventListener('DOMContentLoaded', () => {
 		usernameDiv.textContent = localStorage.getItem('username')
 	}
 
-	loadWorkDayData();
+	// loadWorkDayData();
 
 	ipcRenderer.on('work-day-updated', () => {
 		loadWorkDayData();
 	});
 
-	// const storedData = localStorage.getItem('workDayData');
+	const storedData = localStorage.getItem('workDayData');
 
-	// if (storedData) {
-	// 	const workDayData = JSON.parse(storedData);
-	// 	renderWorkDayData(workDayData);
-	//   } else {
+	if (storedData) {
+		const workDayData = JSON.parse(storedData);
+		renderWorkDayData(workDayData);
+	  } else {
 		
-	// 	loadWorkDayData();
-	//   }
+		loadWorkDayData();
+	  }
 
 });
 
