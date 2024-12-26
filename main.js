@@ -1,4 +1,4 @@
-const { app, Tray, Menu, ipcMain , BrowserWindow } = require('electron');
+const { app, Tray, Menu, ipcMain, BrowserWindow } = require('electron');
 const { authenticateUser } = require('./src/odoo/authenticateUser');
 const { getClients } = require('./src/odoo/getClients');
 const { presenceNotification } = require('./src/utils/presenceNotification');
@@ -11,7 +11,25 @@ const { getIpAndLocation } = require('./src/utils/getIPAddress');
 const { checkDataAndSend } = require('./src/utils/checkDataAndSend');
 async function getStore() {
   const { default: Store } = await import('electron-store');
-  return new Store(); 
+  return new Store();
+}
+function calculateTimeDifference(time1, time2) {
+
+  const [h1, m1, s1] = time1.split(":").map(Number);
+  const [h2, m2, s2] = time2.split(":").map(Number);
+
+  const time1InSeconds = h1 * 3600 + m1 * 60 + s1;
+  const time2InSeconds = h2 * 3600 + m2 * 60 + s2;
+
+  let differenceInSeconds = Math.abs(time1InSeconds - time2InSeconds);
+  const hours = Math.floor(differenceInSeconds / 3600);
+  differenceInSeconds %= 3600;
+  const minutes = Math.floor(differenceInSeconds / 60);
+  const seconds = differenceInSeconds % 60;
+
+  return time2 === '00:00:00'
+    ? '00:00:00'
+    : `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 let tray;
 let presenceJob = null;
@@ -31,7 +49,7 @@ const activityData = {
 const gotTheLock = app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
-  
+
   app.quit();
 } else {
   app.on('second-instance', (event, commandLine, workingDirectory) => {
@@ -116,7 +134,7 @@ if (!gotTheLock) {
       getIpAndLocation(activityData)
     });
   }
-  
+
   async function verifyCredentialsOnStart() {
     try {
       const { username, password, url, db } = await getCredentials(['username', 'password', 'url', 'db']);
@@ -187,6 +205,16 @@ if (!gotTheLock) {
       console.error('Error al cerrar sesión:', error);
     }
   });
+  
+  ipcMain.on('update-work-day', async (event, data) => {
+    const store = await getStore();
+    const work_day = store.set('work-day', data);
+    console.log('Datos actualizados:', store.get('work-day'));
+
+    BrowserWindow.getAllWindows().forEach(win => {
+      win.webContents.send('work-day-updated', work_day);
+    });
+  });
 
   ipcMain.on('send-data', async (event, client, description) => {
     const store = await getStore();
@@ -194,36 +222,69 @@ if (!gotTheLock) {
     console.log('Datos recibidos del formulario:', { client, description });
     activityData.partner_id = client;
     activityData.description = description;
-    
+
     const client_data = store.get('clients').find(rec => rec.id == client);
-        if (client_data) {
-          console.log('Cliente encontrado:', client_data);
-        } else {
-          console.log('Cliente no encontrado');
-        }
-    const work_day = store.get('work-day') || [];
-    const data_work_day = {
-      client: client_data.name,
-      startWork: activityData.presence.timestamp,
+    if (client_data) {
+      console.log('Cliente encontrado:', client_data);
+    } else {
+      console.log('Cliente no encontrado');
     }
-    work_day.push(data_work_day);
-    store.set('work-day', work_day);
+    const work_day = store.get('work-day') || [];
+    
+    lastClient = null; 
+    
+    if (work_day.length === 0) {
+      const data_work_day = {
+        client: client_data.name,
+        startWork: activityData.presence.timestamp.split(' ')[1],
+        endWork: '00:00:00',
+        timeWorked: '00:00:00',
+      };
+    
+      work_day.push(data_work_day);
+      store.set('work-day', work_day);
+      console.log('Primer cliente agregado:', store.get('work-day'));
+      lastClient = client_data.name; 
+    } else {
+      
+      const lastItem = work_day[work_day.length - 1]; 
+    
+      if (lastItem.client !== client_data.name) {
+        
+        lastItem.endWork = activityData.presence.timestamp.split(' ')[1];
+        lastItem.timeWorked = calculateTimeDifference(lastItem.startWork, lastItem.endWork);
+        const data_work_day = {
+          client: client_data.name,
+          startWork: activityData.presence.timestamp.split(' ')[1],
+          endWork: '00:00:00',
+          timeWorked: '00:00:00',
+        };
+        work_day.push(data_work_day);
+        store.set('work-day', work_day);
+      } else {
+        lastItem.endWork = activityData.presence.timestamp.split(' ')[1];
+        lastItem.timeWorked = calculateTimeDifference(lastItem.startWork, lastItem.endWork);
+        store.set('work-day', work_day);
+      }
+    }
+    
+    
+
 
     BrowserWindow.getAllWindows().forEach(win => {
       win.webContents.send('work-day-updated', work_day);
     });
-    
-    console.log('DATOS ACTUALIZADOS ENVIADOS AL PRECESO DE RENDERIZADP')
-    console.log('datos para la actividad diaria de trabajo', store.get('work-day'));
-    
-    console.log(store.get('work-day'));
+
+    // console.log('----------------------------------------------------------------')
+    // console.log('datos para la actividad diaria de trabajo', store.get('work-day'));
+    // console.log('----------------------------------------------------------------')
     checkDataAndSend(activityData)
-    
+
     activityData.partner_id = null;
     activityData.description = null;
     modalWindows.close()
   });
-  
+
 
   ipcMain.handle('get-work-day', async (event) => {
     const store = await getStore();

@@ -1,21 +1,17 @@
 const { ipcRenderer } = require('electron');
 
-// Función que se ejecuta cuando se hace clic en "Editar"
 function editRow(button) {
 	const row = button.closest('tr');
-	//obtener indice de la celda seleccianda
 	
 	const startTimeCell = row.querySelector('.start-time');
 	const endTimeCell = row.querySelector('.end-time');
   
 	const originalStartTime = startTimeCell.textContent;
 	const originalEndTime = endTimeCell.textContent;
-  
-	// Reemplaza las celdas por inputs
+
 	startTimeCell.innerHTML = `<input type="text" class="edit-input" value="${originalStartTime}" />`;
 	endTimeCell.innerHTML = `<input type="text" class="edit-input" value="${originalEndTime}" />`;
-  
-	// Reemplaza el botón de editar por los botones de guardar y cancelar
+
 	const actionCell = row.querySelector('td:last-child');
 	actionCell.innerHTML = `
 	  <button class="save-btn" onclick="saveRow(this, '${originalStartTime}', '${originalEndTime}')">Guardar</button>
@@ -27,16 +23,15 @@ function editRow(button) {
 	const row = button.closest('tr');
 	const startInput = row.querySelector('.start-time input');
 	const endInput = row.querySelector('.end-time input');
-  
-	// Actualiza las celdas con los nuevos valores
+	const index = row.rowIndex-1; 
+	
 	row.querySelector('.start-time').textContent = startInput.value;
 	row.querySelector('.end-time').textContent = endInput.value;
 	
-	// Actualiza los datos en localStorage
 	const workDayData = JSON.parse(localStorage.getItem('workDayData'));
-	const clientName = row.querySelector('td:first-child').textContent;
+	
 	const updatedData = workDayData.map(item => {
-	  if (item.client === clientName) {
+	  if (index === workDayData.indexOf(item)) {
 		return {
 		  ...item,
 		  startWork: startInput.value,
@@ -49,21 +44,19 @@ function editRow(button) {
 	  return item;
 	});
   
-	// Guardar los datos actualizados en localStorage
 	localStorage.setItem('workDayData', JSON.stringify(updatedData));
-  
-	// Vuelve a mostrar el botón de editar
+	const data = JSON.parse(localStorage.getItem('workDayData'));
+	ipcRenderer.send('update-work-day', data);
+	
 	row.querySelector('td:last-child').innerHTML = `<button class="edit-btn" onclick="editRow(this)">Editar</button>`;
   }
   
   function cancelEdit(button, originalStartTime, originalEndTime) {
 	const row = button.closest('tr');
-  
-	// Revertir los valores de las celdas
+  	
 	row.querySelector('.start-time').textContent = originalStartTime;
 	row.querySelector('.end-time').textContent = originalEndTime;
   
-	// Vuelve a mostrar el botón de editar
 	row.querySelector('td:last-child').innerHTML = `<button class="edit-btn" onclick="editRow(this)">Editar</button>`;
   }
   
@@ -88,94 +81,16 @@ function calculateTimeDifference(time1, time2) {
         : `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-
-
-async function loadWorkDayData() {
-	try {
-		const workDayData = await ipcRenderer.invoke('get-work-day')
-		const tbody = document.getElementById('work-day-tbody');
-		tbody.innerHTML = '';
-	
-		if (workDayData && workDayData.length > 0) {
-			lastClient = null;
-			lastRow = null;
-			lastEndTime = null;
-			const reformattedData = [];
-			workDayData.forEach((item, index) => {
-				const row = document.createElement('tr');
-				let startTime = item.startWork.split(' ')[1];
-			
-				let endTime;
-				if (index < workDayData.length - 1) {
-					endTime = workDayData[index + 1].startWork.split(' ')[1];
-				} else if (lastClient == item.client) {
-					endTime = item.startWork.split(' ')[1];
-				} else {
-					endTime = '00:00:00';
-				}
-			
-				
-				let timeWorked = calculateTimeDifference(startTime, endTime);
-
-				
-				
-				if (lastClient === item.client) {
-					
-					startTime = lastRow.children[1].textContent;
-					timeWorked = calculateTimeDifference(startTime, endTime);
-					// endTime = workDayData[index + 1].startWork.split(' ')[1];
-					lastRow.children[2].textContent = endTime;
-					lastRow.children[3].textContent = timeWorked;
-
-					reformattedData[reformattedData.length - 1].endWork = endTime;
-					reformattedData[reformattedData.length - 1].timeWorked = timeWorked
-				} else {
-					row.innerHTML = `
-						<td>${item.client}</td>
-						<td class="start-time">${startTime}</td>
-						<td class="end-time">${endTime}</td>
-						<td class="time-work">${timeWorked}</td>
-						<td>
-			  				<button class="edit-btn" onclick="editRow(this)">Editar</button>
-						</td>`
-					;
-
-					const workDataObject = {
-						client: item.client,   
-						startWork: startTime,  
-						endWork: endTime,     
-						timeWorked: timeWorked 
-					  };
-
-					reformattedData.push(workDataObject)
-					
-					lastClient = item.client;   
-					lastEndTime = endTime;      
-					lastRow = row;              
-				}
-				
-				tbody.appendChild(row);
-			
-			});
-			if (reformattedData.length > 0) {
-				localStorage.setItem('workDayData', JSON.stringify(reformattedData));
-			}
-		} else {
-			const emptyRow = document.createElement('tr');
-			emptyRow.innerHTML = `<td colspan="4">No hay datos disponibles</td>`;
-			tbody.appendChild(emptyRow);
-		}
-	} catch (error) {
-		console.error('Error al cargar los datos de trabajo del día:', error);
-	}
-	
-}
-
-
-function renderWorkDayData(workDayData) {
+async function renderWorkDayData() {
+	const workDayData = await ipcRenderer.invoke('get-work-day')
+	localStorage.setItem('workDayData', JSON.stringify(workDayData));
 	const tbody = document.getElementById('work-day-tbody');
 	tbody.innerHTML = '';
-  
+	if (workDayData.length === 0) {
+		const emptyRow = document.createElement('tr');
+		emptyRow.innerHTML = `<td colspan="4">No hay datos disponibles</td>`;
+		tbody.appendChild(emptyRow);
+	}
 	workDayData.forEach(item => {
 	  const row = document.createElement('tr');
 	  row.innerHTML = `
@@ -203,28 +118,17 @@ document.addEventListener('DOMContentLoaded', () => {
 		usernameDiv.textContent = localStorage.getItem('username')
 	}
 
-	// loadWorkDayData();
+	renderWorkDayData();
 
 	ipcRenderer.on('work-day-updated', () => {
-		loadWorkDayData();
+		renderWorkDayData();
 	});
-
-	const storedData = localStorage.getItem('workDayData');
-
-	if (storedData) {
-		const workDayData = JSON.parse(storedData);
-		renderWorkDayData(workDayData);
-	  } else {
-		
-		loadWorkDayData();
-	  }
 
 });
 
 document.getElementById('logout').addEventListener('click', () => {
 	ipcRenderer.send('logout');
 });
-
 
 document.getElementById('delete_data').addEventListener('click', () => { 
 	ipcRenderer.send('delete_data');

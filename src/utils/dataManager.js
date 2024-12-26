@@ -20,7 +20,7 @@ async function sendLocalData() {
     if (savedData && savedData.length > 0) {
         for (const data of savedData) {
             try {
-                await sendData('user.activity', data);
+                // await sendData('user.activity', data);
                 console.log('Datos enviados al servidor:', data);
             } catch (error) {
                 console.error('Error al enviar datos almacenados localmente:', error);
@@ -35,7 +35,7 @@ async function handleData(activityData) {
     const isConnected = await checkServerConnection();
     if (isConnected) {
         try {
-            await sendData('user.activity', activityData);
+            // await sendData('user.activity', activityData);
             console.log('Datos enviados al servidor.');
 
             await sendLocalData(); // Enviar datos almacenados localmente si hay conexión
