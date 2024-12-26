@@ -1,37 +1,18 @@
-const fs = require('fs');
-const path = require('path');
-const screenshot = require('desktop-screenshot');
+const screenshot = require('screenshot-desktop')
 const { Buffer } = require('buffer');
 // const { checkDataAndSend } = require('./checkDataAndSend');
 
-function captureScreen(activityData) {
-	const desktopPath = path.join(require('os').homedir(), 'Desktop', 'capturas');
+async function captureScreen(activityData) {
 
-	if (!fs.existsSync(desktopPath)) {
-		fs.mkdirSync(desktopPath, { recursive: true });
-	}
+	screenshot({ format: 'png' }).then((img) => {
 
-	const filePath = path.join(desktopPath, `screenshot_${Date.now()}.png`);
+		const base64Data = Buffer.from(img).toString('base64');
 
-	screenshot(filePath, (err) => {
-		if (err) {
-			console.error('Error al capturar la pantalla:', err);
-			return;
-		}
+		activityData.screenshot = { path: base64Data };
 
-		fs.readFile(filePath, (readErr, data) => {
-			if (readErr) {
-				console.error('Error al leer el archivo:', readErr);
-				return;
-			}
-			//convertir base64 
-			const base64Data = Buffer.from(data).toString('base64');
-			activityData.screenshot = { path: base64Data };
-			console.log('Captura de pantalla en base64 lista para enviar a odoo');
-		})
-
-		// setTimeout(() => checkDataAndSend(activityData), 1000);
-	});
+	}).catch((err) => {
+		console.error('Error al capturar la pantalla:', err);
+	})
 }
 
 module.exports = { captureScreen };

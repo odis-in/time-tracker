@@ -43,11 +43,11 @@
     "request-promise": "*"
   },
   "dependencies": {
-    "desktop-screenshot": "^0.1.1",
     "electron-store": "^10.0.0",
     "keytar": "^7.9.0",
     "node-cron": "^3.0.3",
     "node-notifier": "^10.0.1",
+    "screenshot-desktop": "^1.15.1",
     "xmlrpc": "^1.3.2"
   }
 }
