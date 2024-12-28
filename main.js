@@ -9,32 +9,17 @@ const { saveCredentials, getCredentials, clearCredentials } = require('./src/uti
 const { createLoginWindow, createMainWindow, createModalWindow, getLoginWindow, getMainWindow, getModalWindow } = require('./src/utils/windowaManager');
 const { getIpAndLocation } = require('./src/utils/getIPAddress');
 const { checkDataAndSend } = require('./src/utils/checkDataAndSend');
+const { calculateTimeDifference, convertDate } = require('./src/utils/calculateTimeDifference');
 async function getStore() {
   const { default: Store } = await import('electron-store');
   return new Store();
 }
-function calculateTimeDifference(time1, time2) {
 
-  const [h1, m1, s1] = time1.split(":").map(Number);
-  const [h2, m2, s2] = time2.split(":").map(Number);
-
-  const time1InSeconds = h1 * 3600 + m1 * 60 + s1;
-  const time2InSeconds = h2 * 3600 + m2 * 60 + s2;
-
-  let differenceInSeconds = Math.abs(time1InSeconds - time2InSeconds);
-  const hours = Math.floor(differenceInSeconds / 3600);
-  differenceInSeconds %= 3600;
-  const minutes = Math.floor(differenceInSeconds / 60);
-  const seconds = differenceInSeconds % 60;
-
-  return time2 === '00:00:00'
-    ? '00:00:00'
-    : `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-}
 let tray;
 let presenceJob = null;
 let screenshotJob = null;
 let addressJob = null;
+let session = null;
 
 const activityData = {
   presence: null,
@@ -80,17 +65,10 @@ if (!gotTheLock) {
         click: () => {
           const mainWindow = getMainWindow();
           const loginWindow = getLoginWindow();
-
-          if (mainWindow && mainWindow.isVisible()) {
-            mainWindow.focus();
-          } else if (loginWindow && loginWindow.isVisible()) {
-            loginWindow.focus();
-          } else if (mainWindow) {
+          if(session){
             mainWindow.show();
-          } else if (loginWindow) {
-            loginWindow.show();
           } else {
-            createLoginWindow();
+            loginWindow.show();
           }
         }
       },
@@ -141,6 +119,7 @@ if (!gotTheLock) {
       console.log(username, password, url, db);
       if (username && password) {
         createMainWindow();
+        
         const clients = await getClients();
         const store = await getStore();
         store.set('clients', clients);
@@ -148,6 +127,7 @@ if (!gotTheLock) {
         console.log(activityData);
       } else {
         createLoginWindow();
+        session = false;
       }
     } catch (error) {
       console.error('Error al verificar las credenciales:', error);
@@ -172,6 +152,7 @@ if (!gotTheLock) {
       try {
         const uid = await authenticateUser(username, password, url, db);
         await saveCredentials(username, password, url, timeNotification, uid.toString(), db);
+        
         const clients = await getClients();
         return uid;
       } catch (error) {
@@ -201,6 +182,7 @@ if (!gotTheLock) {
 
       stopCronJobs();
       createLoginWindow();
+      session = false;
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
     }
@@ -236,7 +218,7 @@ if (!gotTheLock) {
     if (work_day.length === 0) {
       const data_work_day = {
         client: client_data.name,
-        startWork: activityData.presence.timestamp.split(' ')[1],
+        startWork: convertDate(activityData.presence.timestamp.split(' ')[1]),
         endWork: '00:00:00',
         timeWorked: '00:00:00',
       };
@@ -251,33 +233,27 @@ if (!gotTheLock) {
     
       if (lastItem.client !== client_data.name) {
         
-        lastItem.endWork = activityData.presence.timestamp.split(' ')[1];
+        lastItem.endWork = convertDate(activityData.presence.timestamp.split(' ')[1]);
         lastItem.timeWorked = calculateTimeDifference(lastItem.startWork, lastItem.endWork);
         const data_work_day = {
           client: client_data.name,
-          startWork: activityData.presence.timestamp.split(' ')[1],
+          startWork: convertDate(activityData.presence.timestamp.split(' ')[1]),
           endWork: '00:00:00',
           timeWorked: '00:00:00',
         };
         work_day.push(data_work_day);
         store.set('work-day', work_day);
       } else {
-        lastItem.endWork = activityData.presence.timestamp.split(' ')[1];
+        lastItem.endWork = convertDate(activityData.presence.timestamp.split(' ')[1]);
         lastItem.timeWorked = calculateTimeDifference(lastItem.startWork, lastItem.endWork);
         store.set('work-day', work_day);
       }
     }
     
-    
-
-
     BrowserWindow.getAllWindows().forEach(win => {
       win.webContents.send('work-day-updated', work_day);
     });
 
-    // console.log('----------------------------------------------------------------')
-    // console.log('datos para la actividad diaria de trabajo', store.get('work-day'));
-    // console.log('----------------------------------------------------------------')
     checkDataAndSend(activityData)
 
     activityData.partner_id = null;
@@ -300,6 +276,7 @@ if (!gotTheLock) {
 
   ipcMain.on('login-success', () => {
     createMainWindow();
+    session = true;
     setupCronJobs();
 
     const loginWindow = getLoginWindow();

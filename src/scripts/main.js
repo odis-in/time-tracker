@@ -1,11 +1,12 @@
 const { ipcRenderer } = require('electron');
+const { calculateTimeDifference } = require('../utils/calculateTimeDifference');
 
 function editRow(button) {
 	const row = button.closest('tr');
-	
+
 	const startTimeCell = row.querySelector('.start-time');
 	const endTimeCell = row.querySelector('.end-time');
-  
+
 	const originalStartTime = startTimeCell.textContent;
 	const originalEndTime = endTimeCell.textContent;
 
@@ -17,69 +18,61 @@ function editRow(button) {
 	  <button class="save-btn" onclick="saveRow(this, '${originalStartTime}', '${originalEndTime}')">Guardar</button>
 	  <button class="cancel-btn" onclick="cancelEdit(this, '${originalStartTime}', '${originalEndTime}')">Cancelar</button>
 	`;
-  }
-  
-  function saveRow(button, originalStartTime, originalEndTime) {
+}
+
+function saveRow(button, originalStartTime, originalEndTime) {
 	const row = button.closest('tr');
 	const startInput = row.querySelector('.start-time input');
 	const endInput = row.querySelector('.end-time input');
-	const index = row.rowIndex-1; 
-	
-	row.querySelector('.start-time').textContent = startInput.value;
-	row.querySelector('.end-time').textContent = endInput.value;
-	
-	const workDayData = JSON.parse(localStorage.getItem('workDayData'));
-	
-	const updatedData = workDayData.map(item => {
-	  if (index === workDayData.indexOf(item)) {
-		return {
-		  ...item,
-		  startWork: startInput.value,
-		  endWork: endInput.value,
-		  timeWorked: calculateTimeDifference(startInput.value, endInput.value)
-		};
-	  }
+	const index = row.rowIndex - 1;
+	console.log(index);
+	if (startInput.value >= endInput.value) {
+		document.getElementById('message-error').textContent = 'LA HORA DE INCIO NO PUEDE SER MAYOR O IGUAL A LA HORA DE FIN';
+	} else {
 
-	row.querySelector('.time-work').textContent = calculateTimeDifference(startInput.value, endInput.value);
-	  return item;
-	});
-  
-	localStorage.setItem('workDayData', JSON.stringify(updatedData));
-	const data = JSON.parse(localStorage.getItem('workDayData'));
-	ipcRenderer.send('update-work-day', data);
-	
-	row.querySelector('td:last-child').innerHTML = `<button class="edit-btn" onclick="editRow(this)">Editar</button>`;
-  }
-  
-  function cancelEdit(button, originalStartTime, originalEndTime) {
+		document.getElementById('message-error').textContent = '';
+
+		const workDayData = JSON.parse(localStorage.getItem('workDayData'));
+
+		if (index > 0) {
+			if (startInput.value < workDayData[index - 1].endWork || endInput.value > workDayData[index + 1]?.endWork) {
+				document.getElementById('message-error').textContent = 'TRASLAPE DE HORAS';
+				return;
+			}
+		} 
+
+		const updatedData = workDayData.map(item => {
+			if (index === workDayData.indexOf(item)) {
+				return {
+					...item,
+					startWork: startInput.value,
+					endWork: endInput.value,
+					timeWorked: calculateTimeDifference(startInput.value, endInput.value)
+				};
+			}
+
+			row.querySelector('.time-work').textContent = calculateTimeDifference(startInput.value, endInput.value);
+			return item;
+		});
+		row.querySelector('.start-time').textContent = startInput.value;
+		row.querySelector('.end-time').textContent = endInput.value;
+		localStorage.setItem('workDayData', JSON.stringify(updatedData));
+		const data = JSON.parse(localStorage.getItem('workDayData'));
+		ipcRenderer.send('update-work-day', data);
+
+		row.querySelector('td:last-child').innerHTML = `<button class="edit-btn" onclick="editRow(this)">Editar</button>`;
+	}
+}
+
+function cancelEdit(button, originalStartTime, originalEndTime) {
 	const row = button.closest('tr');
-  	
+	document.getElementById('message-error').textContent = '';
 	row.querySelector('.start-time').textContent = originalStartTime;
 	row.querySelector('.end-time').textContent = originalEndTime;
-  
+
 	row.querySelector('td:last-child').innerHTML = `<button class="edit-btn" onclick="editRow(this)">Editar</button>`;
-  }
-  
-  
-
-function calculateTimeDifference(time1, time2) {
-
-    const [h1, m1, s1] = time1.split(":").map(Number);
-    const [h2, m2, s2] = time2.split(":").map(Number);
-    
-    const time1InSeconds = h1 * 3600 + m1 * 60 + s1;
-    const time2InSeconds = h2 * 3600 + m2 * 60 + s2;
-
-    let differenceInSeconds = Math.abs(time1InSeconds - time2InSeconds);
-    const hours = Math.floor(differenceInSeconds / 3600);
-    differenceInSeconds %= 3600;
-    const minutes = Math.floor(differenceInSeconds / 60);
-    const seconds = differenceInSeconds % 60;
-
-    return time2 === '00:00:00' 
-        ? '00:00:00' 
-        : `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
+
 
 async function renderWorkDayData() {
 	const workDayData = await ipcRenderer.invoke('get-work-day')
@@ -92,8 +85,9 @@ async function renderWorkDayData() {
 		tbody.appendChild(emptyRow);
 	}
 	workDayData.forEach(item => {
-	  const row = document.createElement('tr');
-	  row.innerHTML = `
+		const row = document.createElement('tr');
+
+		row.innerHTML = `
 		<td>${item.client}</td>
 		<td class="start-time">${item.startWork}</td>
 		<td class="end-time">${item.endWork}</td>
@@ -102,9 +96,9 @@ async function renderWorkDayData() {
 		  <button class="edit-btn" onclick="editRow(this)">Editar</button>
 		</td>
 	  `;
-	  tbody.appendChild(row);
+		tbody.appendChild(row);
 	});
-  }
+}
 
 document.addEventListener('DOMContentLoaded', () => {
 	const closeButton = document.getElementById('close');
@@ -130,7 +124,7 @@ document.getElementById('logout').addEventListener('click', () => {
 	ipcRenderer.send('logout');
 });
 
-document.getElementById('delete_data').addEventListener('click', () => { 
+document.getElementById('delete_data').addEventListener('click', () => {
 	ipcRenderer.send('delete_data');
 	localStorage.removeItem('workDayData');
 });

@@ -296,3 +296,10 @@ td .edit-btn {
 .cancel-btn:hover {
   background-color: #c82333;
 }
+
+.message-error {
+  color: #dc3545;
+  font-size: 16px;
+  padding-top: 5px;
+  font-weight: bold;
+}
