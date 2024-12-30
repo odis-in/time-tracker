@@ -65,7 +65,7 @@ if (!gotTheLock) {
         click: () => {
           const mainWindow = getMainWindow();
           const loginWindow = getLoginWindow();
-          if(session){
+          if (session) {
             mainWindow.show();
           } else {
             loginWindow.show();
@@ -95,11 +95,6 @@ if (!gotTheLock) {
 
     const notifationInterval = parseInt(timeNotification);
 
-    if (presenceJob || screenshotJob || addressJob) {
-      console.log("Cron jobs ya están configurados");
-      return;
-    }
-
     presenceJob = cron.schedule(`*/${notifationInterval} * * * *`, () => {
       presenceNotification(activityData);
     });
@@ -111,6 +106,12 @@ if (!gotTheLock) {
     addressJob = cron.schedule(`*/${notifationInterval} * * * *`, () => {
       getIpAndLocation(activityData)
     });
+
+    if (presenceJob || screenshotJob || addressJob) {
+      console.log("Cron jobs ya están configurados");
+      console.log(presenceJob, screenshotJob, addressJob);
+      return;
+    }
   }
 
   async function verifyCredentialsOnStart() {
@@ -119,7 +120,7 @@ if (!gotTheLock) {
       console.log(username, password, url, db);
       if (username && password) {
         createMainWindow();
-        
+
         const clients = await getClients();
         const store = await getStore();
         store.set('clients', clients);
@@ -152,7 +153,7 @@ if (!gotTheLock) {
       try {
         const uid = await authenticateUser(username, password, url, db);
         await saveCredentials(username, password, url, timeNotification, uid.toString(), db);
-        
+
         const clients = await getClients();
         return uid;
       } catch (error) {
@@ -187,7 +188,7 @@ if (!gotTheLock) {
       console.error('Error al cerrar sesión:', error);
     }
   });
-  
+
   ipcMain.on('update-work-day', async (event, data) => {
     const store = await getStore();
     const work_day = store.set('work-day', data);
@@ -212,9 +213,9 @@ if (!gotTheLock) {
       console.log('Cliente no encontrado');
     }
     const work_day = store.get('work-day') || [];
-    
-    lastClient = null; 
-    
+
+    lastClient = null;
+
     if (work_day.length === 0) {
       const data_work_day = {
         client: client_data.name,
@@ -222,17 +223,17 @@ if (!gotTheLock) {
         endWork: '00:00:00',
         timeWorked: '00:00:00',
       };
-    
+
       work_day.push(data_work_day);
       store.set('work-day', work_day);
       console.log('Primer cliente agregado:', store.get('work-day'));
-      lastClient = client_data.name; 
+      lastClient = client_data.name;
     } else {
-      
-      const lastItem = work_day[work_day.length - 1]; 
-    
+
+      const lastItem = work_day[work_day.length - 1];
+
       if (lastItem.client !== client_data.name) {
-        
+
         lastItem.endWork = convertDate(activityData.presence.timestamp.split(' ')[1]);
         lastItem.timeWorked = calculateTimeDifference(lastItem.startWork, lastItem.endWork);
         const data_work_day = {
@@ -249,7 +250,7 @@ if (!gotTheLock) {
         store.set('work-day', work_day);
       }
     }
-    
+
     BrowserWindow.getAllWindows().forEach(win => {
       win.webContents.send('work-day-updated', work_day);
     });
@@ -272,6 +273,17 @@ if (!gotTheLock) {
     const store = await getStore();
     store.delete('work-day');
     console.log('Datos borrados desde el boton', store.get('work-day'));
+  });
+
+  ipcMain.on('add-row', async (event, flag) => {
+    console.log(event, flag)
+    if (flag) {
+      stopCronJobs(); console.log('Cron jobs detenidos');
+    } else { 
+      setupCronJobs(); 
+    }
+
+
   });
 
   ipcMain.on('login-success', () => {

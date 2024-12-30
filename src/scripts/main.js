@@ -1,5 +1,7 @@
 const { ipcRenderer } = require('electron');
 const { calculateTimeDifference } = require('../utils/calculateTimeDifference');
+const { getClients } = require("../odoo/getClients");
+
 const editIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" width="20" height="20" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
 <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
 </svg>`
@@ -16,6 +18,37 @@ const cancelIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" width="2
 const saveIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" width="20" height="20" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
 <path stroke-linecap="round" stroke-linejoin="round" d="M10.125 2.25h-4.5c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125v-9M10.125 2.25h.375a9 9 0 0 1 9 9v.375M10.125 2.25A3.375 3.375 0 0 1 13.5 5.625v1.5c0 .621.504 1.125 1.125 1.125h1.5a3.375 3.375 0 0 1 3.375 3.375M9 15l2.25 2.25L15 12" />
 </svg>`
+
+async function showClients() {
+	try {
+		const clients = await getClients();
+		console.log(clients);
+
+
+		const clientSelect = document.getElementById('client');
+
+		if (!clients || clients.length === 0) {
+			console.warn('No hay clientes disponibles.');
+			clientSelect.innerHTML = '<option value="">No hay clientes disponibles</option>';
+			return;
+		}
+
+		clientSelect.innerHTML = '';
+
+		clients.forEach(client => {
+			const option = document.createElement('option');
+			option.value = client.id;
+			option.textContent = client.name;
+			clientSelect.appendChild(option);
+		});
+	} catch (error) {
+		console.error('Error al obtener los clientes:', error);
+
+
+		const clientSelect = document.getElementById('client');
+		clientSelect.innerHTML = '<option value="">Error al cargar los clientes</option>';
+	}
+}
 
 function editRow(button) {
 	const row = button.closest('tr');
@@ -37,81 +70,137 @@ function editRow(button) {
 }
 
 function saveRow(button, originalStartTime, originalEndTime) {
-	const row = button.closest('tr');
-	const startInput = row.querySelector('.start-time input');
-	const endInput = row.querySelector('.end-time input');
-	const index = row.rowIndex - 1;
-	console.log(index);
-	if (startInput.value >= endInput.value) {
-		document.getElementById('message-error').textContent = 'LA HORA DE INCIO NO PUEDE SER MAYOR O IGUAL A LA HORA DE FIN';
-	} else {
+	const btnSave = document.querySelector('.btn-add');
+	if (btnSave.value != 'no_create') {
+		const row = button.closest('tr');
+		const startInput = row.querySelector('.start-time input');
+		const endInput = row.querySelector('.end-time input');
+		const index = row.rowIndex - 1;
+		console.log(index);
+		if (startInput.value >= endInput.value) {
+			document.getElementById('message-error').textContent = 'LA HORA DE INCIO NO PUEDE SER MAYOR O IGUAL A LA HORA DE FIN';
+		} else {
 
-		document.getElementById('message-error').textContent = '';
+			document.getElementById('message-error').textContent = '';
+
+			const workDayData = JSON.parse(localStorage.getItem('workDayData'));
+
+			if (index > 0) {
+				if (startInput.value < workDayData[index - 1].endWork || endInput.value > workDayData[index + 1]?.endWork) {
+					document.getElementById('message-error').textContent = 'TRASLAPE DE HORAS';
+					return;
+				}
+			}
+
+			const updatedData = workDayData.map(item => {
+				if (index === workDayData.indexOf(item)) {
+					return {
+						...item,
+						startWork: startInput.value,
+						endWork: endInput.value,
+						timeWorked: calculateTimeDifference(startInput.value, endInput.value)
+					};
+				}
+
+				row.querySelector('.time-work').textContent = calculateTimeDifference(startInput.value, endInput.value);
+				return item;
+			});
+			row.querySelector('.start-time').textContent = startInput.value;
+			row.querySelector('.end-time').textContent = endInput.value;
+			localStorage.setItem('workDayData', JSON.stringify(updatedData));
+			const data = JSON.parse(localStorage.getItem('workDayData'));
+			ipcRenderer.send('update-work-day', data);
+
+			row.querySelector('td:last-child').innerHTML = `<button class="edit-btn" onclick="editRow(this)">${editIcon}</button>`;
+		}
+	} else {
+		const selectClient = document.querySelector('.client');
+		const selectClientIndex = selectClient.selectedIndex;
+		const selectClientText = selectClient.options[selectClientIndex].text;
+
+		const startInput = document.querySelector('.start-time input').value;
+		const endInput = document.querySelector('.end-time input').value;
 
 		const workDayData = JSON.parse(localStorage.getItem('workDayData'));
-
-		if (index > 0) {
-			if (startInput.value < workDayData[index - 1].endWork || endInput.value > workDayData[index + 1]?.endWork) {
-				document.getElementById('message-error').textContent = 'TRASLAPE DE HORAS';
-				return;
-			}
-		} 
-
-		const updatedData = workDayData.map(item => {
-			if (index === workDayData.indexOf(item)) {
-				return {
-					...item,
-					startWork: startInput.value,
-					endWork: endInput.value,
-					timeWorked: calculateTimeDifference(startInput.value, endInput.value)
-				};
-			}
-
-			row.querySelector('.time-work').textContent = calculateTimeDifference(startInput.value, endInput.value);
-			return item;
-		});
-		row.querySelector('.start-time').textContent = startInput.value;
-		row.querySelector('.end-time').textContent = endInput.value;
+		const newRecord = {
+			client: selectClientText,
+			startWork: startInput,
+			endWork: endInput,
+			timeWorked: calculateTimeDifference(startInput, endInput)
+		}
+		btnSave.value = 'create';
+		ipcRenderer.send('add-row', false);
+		const updatedData = [...workDayData, newRecord];
 		localStorage.setItem('workDayData', JSON.stringify(updatedData));
-		const data = JSON.parse(localStorage.getItem('workDayData'));
-		ipcRenderer.send('update-work-day', data);
-
-		row.querySelector('td:last-child').innerHTML = `<button class="edit-btn" onclick="editRow(this)">${edi}</button>`;
+		ipcRenderer.send('update-work-day', updatedData);
 	}
 }
 
 function cancelEdit(button, originalStartTime, originalEndTime) {
+	const btnSave = document.querySelector('.btn-add');
+	if(btnSave.value != 'no_create'){
 	const row = button.closest('tr');
 	document.getElementById('message-error').textContent = '';
 	row.querySelector('.start-time').textContent = originalStartTime;
 	row.querySelector('.end-time').textContent = originalEndTime;
 
-	row.querySelector('td:last-child').innerHTML = `<td><button class="edit-btn" onclick="editRow(this)">${editIcon}</button><button class="cancel-btn" onclick="deleteRow(this)">${deleteIcon}</button></td>`;
+	row.querySelector('td:last-child').innerHTML = `<td><button class="edit-btn" onclick="editRow(this)">${editIcon}</button><button class="cancel-btn" onclick="deleteRow(this)">${deleteIcon}</button></td>`; }
+	else {
+		const row = button.closest('tr');
+		row.remove();
+		btnSave.value = 'create';
+		ipcRenderer.send('add-row', false);
+	}
 }
 
 function deleteRow(button) {
-    const row = button.closest('tr');
-    const index = row.rowIndex - 1;
+	const row = button.closest('tr');
+	const index = row.rowIndex - 1;
 
-    const modal = document.getElementById('confirmModal');
-    modal.style.display = 'block';
-    
-    const confirmButton = document.getElementById('confirmDelete');
-    const cancelButton = document.getElementById('cancelDelete');
-    
-    confirmButton.onclick = function () {
-        const workDayData = JSON.parse(localStorage.getItem('workDayData'));
-        const updatedData = workDayData.filter((item, i) => i !== index);
-        localStorage.setItem('workDayData', JSON.stringify(updatedData));
-        ipcRenderer.send('update-work-day', updatedData);
-        renderWorkDayData();
-    
-        modal.style.display = 'none';
-    };
-    
-    cancelButton.onclick = function () {
-        modal.style.display = 'none';
-    };
+	const modal = document.getElementById('confirmModal');
+	modal.style.display = 'block';
+
+	const confirmButton = document.getElementById('confirmDelete');
+	const cancelButton = document.getElementById('cancelDelete');
+
+	confirmButton.onclick = function () {
+		const workDayData = JSON.parse(localStorage.getItem('workDayData'));
+		const updatedData = workDayData.filter((item, i) => i !== index);
+		localStorage.setItem('workDayData', JSON.stringify(updatedData));
+		ipcRenderer.send('update-work-day', updatedData);
+		renderWorkDayData();
+
+		modal.style.display = 'none';
+	};
+
+	cancelButton.onclick = function () {
+		modal.style.display = 'none';
+	};
+}
+
+function addRow(button) {
+	const btnSave = document.querySelector('.btn-add');
+	console.log(btnSave.value);
+	if (btnSave.value === 'create') {
+		console.log('Agregar');
+		tbody = document.getElementById('work-day-tbody');
+		const row = document.createElement('tr');
+		showClients();
+		row.innerHTML = `
+		<td><select name="client" id="client" class="client"></td>
+		<td class="start-time"><input type="text"></td>
+		<td class="end-time"><input type="text"</td>
+		<td>00:00:00</td>
+		<td>
+			<button class="save-btn" onclick="saveRow(this)">${saveIcon}</button>
+			<button class="cancel-btn" onclick="cancelEdit(this)">${cancelIcon}</button>
+		</td>`;
+
+		tbody.appendChild(row);
+		btnSave.value = 'no_create';
+		ipcRenderer.send('add-row', true);
+	}
+
 }
 
 

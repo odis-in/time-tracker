@@ -327,3 +327,9 @@ tr:nth-child(even) {
 .tb-actions{
   width: 20%;
 }
+
+.btn-add{
+  width: 150px;
+  margin: 5px 0px;
+  text-align: center;
+}
