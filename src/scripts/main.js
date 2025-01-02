@@ -32,9 +32,7 @@ async function showClients() {
 			clientSelect.innerHTML = '<option value="">No hay clientes disponibles</option>';
 			return;
 		}
-
-		clientSelect.innerHTML = '';
-
+		
 		clients.forEach(client => {
 			const option = document.createElement('option');
 			option.value = client.id;
@@ -59,14 +57,15 @@ function editRow(button) {
 	const originalStartTime = startTimeCell.textContent;
 	const originalEndTime = endTimeCell.textContent;
 
-	startTimeCell.innerHTML = `<input type="text" class="edit-input" value="${originalStartTime}" />`;
-	endTimeCell.innerHTML = `<input type="text" class="edit-input" value="${originalEndTime}" />`;
+	startTimeCell.innerHTML = `<input type="time" class="edit-input" value="${originalStartTime}" />`;
+	endTimeCell.innerHTML = `<input type="time" class="edit-input" value="${originalEndTime}" />`;
 
 	const actionCell = row.querySelector('td:last-child');
 	actionCell.innerHTML = `
 	  <td><button class="save-btn" onclick="saveRow(this, '${originalStartTime}', '${originalEndTime}')">${saveIcon}</button><button class="cancel-btn" onclick="cancelEdit(this,'${originalStartTime}', '${originalEndTime}')">${cancelIcon}</button></td>
 	  
 	`;
+	
 }
 
 function saveRow(button, originalStartTime, originalEndTime) {
@@ -114,30 +113,58 @@ function saveRow(button, originalStartTime, originalEndTime) {
 			row.querySelector('td:last-child').innerHTML = `<button class="edit-btn" onclick="editRow(this)">${editIcon}</button>`;
 		}
 	} else {
+		btnSave.style.display = 'block';
 		const selectClient = document.querySelector('.client');
 		const selectClientIndex = selectClient.selectedIndex;
 		const selectClientText = selectClient.options[selectClientIndex].text;
 
 		const startInput = document.querySelector('.start-time input').value;
 		const endInput = document.querySelector('.end-time input').value;
-
+		
 		const workDayData = JSON.parse(localStorage.getItem('workDayData'));
+		console.log(startInput, workDayData[workDayData.length - 1].endWork);
+		if (startInput >= endInput) {
+			document.getElementById('message-error').textContent = 'LA HORA DE INCIO NO PUEDE SER MAYOR O IGUAL A LA HORA DE FIN';
+			return;
+		} else if (startInput < workDayData[workDayData.length - 1].endWork ) {
+			document.getElementById('message-error').textContent = 'TRASLAPE DE HORAS';
+			return;
+		} else if (selectClientText === '') {
+			document.getElementById('message-error').textContent = 'DEBE SELECCIONAR UN CLIENTE';
+			return;
+		}else if (startInput.value == '00:00' || endInput.value == '00:00'){
+			document.getElementById('message-error').textContent = 'DEBE INGRESAR UNA HORA VALIDA';
+			return;
+		} else {
+			document.getElementById('message-error').textContent = '';
+		}
 		const newRecord = {
 			client: selectClientText,
 			startWork: startInput,
 			endWork: endInput,
 			timeWorked: calculateTimeDifference(startInput, endInput)
 		}
-		btnSave.value = 'create';
-		ipcRenderer.send('add-row', false);
-		const updatedData = [...workDayData, newRecord];
-		localStorage.setItem('workDayData', JSON.stringify(updatedData));
-		ipcRenderer.send('update-work-day', updatedData);
+
+		if (workDayData.length > 0 && workDayData[workDayData.length - 1].endWork === '00:00') { 
+			const lastItem = workDayData[workDayData.length - 1];
+			lastItem.endWork = newRecord.startWork;
+			lastItem.timeWorked = calculateTimeDifference(lastItem.startWork, lastItem.endWork);
+			const updatedData = [...workDayData.slice(0, -1), lastItem, newRecord];
+			localStorage.setItem('workDayData', JSON.stringify(updatedData));
+			ipcRenderer.send('update-work-day', updatedData);
+		} else {
+			btnSave.value = 'create';
+			ipcRenderer.send('add-row', false);
+			const updatedData = [...workDayData, newRecord];
+			localStorage.setItem('workDayData', JSON.stringify(updatedData));
+			ipcRenderer.send('update-work-day', updatedData);
+		}
 	}
 }
 
 function cancelEdit(button, originalStartTime, originalEndTime) {
 	const btnSave = document.querySelector('.btn-add');
+	btnSave.style.display = 'block';
 	if(btnSave.value != 'no_create'){
 	const row = button.closest('tr');
 	document.getElementById('message-error').textContent = '';
@@ -150,6 +177,7 @@ function cancelEdit(button, originalStartTime, originalEndTime) {
 		row.remove();
 		btnSave.value = 'create';
 		ipcRenderer.send('add-row', false);
+		document.getElementById('message-error').textContent = '';
 	}
 }
 
@@ -180,23 +208,27 @@ function deleteRow(button) {
 
 function addRow(button) {
 	const btnSave = document.querySelector('.btn-add');
+	btnSave.style.display = 'none';
+	
 	console.log(btnSave.value);
 	if (btnSave.value === 'create') {
 		console.log('Agregar');
 		tbody = document.getElementById('work-day-tbody');
+		rowsData = tbody.getElementsByTagName('tr');;
 		const row = document.createElement('tr');
 		showClients();
 		row.innerHTML = `
 		<td><select name="client" id="client" class="client"></td>
-		<td class="start-time"><input type="text"></td>
-		<td class="end-time"><input type="text"</td>
+		<td class="start-time"><input type="time" class="edit-input"></td>
+		<td class="end-time edit-input"><input type="time" class="edit-input"></td>
 		<td>00:00:00</td>
 		<td>
 			<button class="save-btn" onclick="saveRow(this)">${saveIcon}</button>
 			<button class="cancel-btn" onclick="cancelEdit(this)">${cancelIcon}</button>
 		</td>`;
-
-		tbody.appendChild(row);
+		// data.length === 2 ? tbody.removeChild(rowsData[0]) : ''
+		// tbody.appendChild(row);
+		tbody.insertBefore(row, tbody.firstChild);
 		btnSave.value = 'no_create';
 		ipcRenderer.send('add-row', true);
 	}
@@ -211,7 +243,7 @@ async function renderWorkDayData() {
 	tbody.innerHTML = '';
 	if (workDayData.length === 0) {
 		const emptyRow = document.createElement('tr');
-		emptyRow.innerHTML = `<td colspan="4">No hay datos disponibles</td>`;
+		emptyRow.innerHTML = `<td colspan="5">No hay datos disponibles</td>`;
 		tbody.appendChild(emptyRow);
 	}
 	workDayData.forEach(item => {

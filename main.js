@@ -220,8 +220,8 @@ if (!gotTheLock) {
       const data_work_day = {
         client: client_data.name,
         startWork: convertDate(activityData.presence.timestamp.split(' ')[1]),
-        endWork: '00:00:00',
-        timeWorked: '00:00:00',
+        endWork: '00:00',
+        timeWorked: '00:00',
       };
 
       work_day.push(data_work_day);
@@ -239,8 +239,8 @@ if (!gotTheLock) {
         const data_work_day = {
           client: client_data.name,
           startWork: convertDate(activityData.presence.timestamp.split(' ')[1]),
-          endWork: '00:00:00',
-          timeWorked: '00:00:00',
+          endWork: '00:00',
+          timeWorked: '00:00',
         };
         work_day.push(data_work_day);
         store.set('work-day', work_day);
