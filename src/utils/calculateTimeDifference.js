@@ -35,6 +35,23 @@ function convertDate(hour) {
     }
 }
 
+function toCorrectISO(dateInput) {
+   
+    const localDate = new Date(dateInput);
+
+    if (isNaN(localDate)) {
+        throw new Error("Fecha inválida");
+    }
+
+    const year = localDate.getUTCFullYear();
+    const month = String(localDate.getUTCMonth() + 1).padStart(2, '0'); 
+    const day = String(localDate.getUTCDate()).padStart(2, '0');
+    const hours = String(localDate.getUTCHours()).padStart(2, '0');
+    const minutes = String(localDate.getUTCMinutes()).padStart(2, '0');
+
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
+}
+
 module.exports = {
-	calculateTimeDifference, convertDate
+	calculateTimeDifference, convertDate, toCorrectISO
 };

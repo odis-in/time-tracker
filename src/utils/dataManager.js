@@ -1,4 +1,5 @@
-const { sendData } = require('../odoo/sendData');
+const { sendData, sendDataSummary } = require('../odoo/sendData');
+const { toCorrectISO } = require('./calculateTimeDifference');
 const { checkServerConnection } = require('./checkConnection');
 
 async function getStore() {
@@ -53,4 +54,26 @@ async function getStoredData() {
     return store.get('offlineData') || []; // Obtener datos almacenados o un array vacío
 }
 
-module.exports = { handleData };
+async function sendActivityUserSummary() {
+
+    const store = await getStore();
+    const work_day = store.get('work-day') || [];
+    const activityData = work_day.map((data) => {
+        return{
+            partner_id: data.client.id,
+            start_time: toCorrectISO(`${data.date} ${data.startWork}`),
+            end_time: toCorrectISO(`${data.date} ${data.endWork}`),
+            total_hours: data.timeWorked
+        }
+    });
+    try {
+        await sendDataSummary('user.activity.summary', activityData);
+        console.log('Datos enviados al servidor:', activityData);
+    } catch (error) {
+        console.log('Error al enviar datos al servidor:', error);
+    }
+    
+
+}
+
+module.exports = { handleData ,sendActivityUserSummary};

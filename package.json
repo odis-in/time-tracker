@@ -1,42 +1,16 @@
 {
-  "name": "electron-project",
+  "name": "time-tracker",
   "version": "1.0.0",
-  "description": "Hello Word!",
+  "description": "",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "pack": "build --dir",
-    "dist": "electron-builder"
+    "build": "electron-builder",
+    "build-windows": "electron-builder -w"
   },
   "author": "",
   "license": "ISC",
-  "build": {
-    "appId": "com.electron-project",
-    "asar": false,
-    "dmg": {
-      "contents": [
-        {
-          "x": 110,
-          "y": 150
-        },
-        {
-          "x": 240,
-          "y": 150,
-          "type": "link",
-          "path": "/Applications"
-        }
-      ]
-    },
-    "linux": {
-      "target": [
-        "AppImage",
-        "deb"
-      ]
-    },
-    "win": {
-      "target": "NSIS"
-    }
-  },
+ 
   "devDependencies": {
     "electron": "^32.0.1",
     "electron-builder": "^24.13.3",

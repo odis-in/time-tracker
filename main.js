@@ -10,6 +10,7 @@ const { createLoginWindow, createMainWindow, createModalWindow, getLoginWindow, 
 const { getIpAndLocation } = require('./src/utils/getIPAddress');
 const { checkDataAndSend } = require('./src/utils/checkDataAndSend');
 const { calculateTimeDifference, convertDate } = require('./src/utils/calculateTimeDifference');
+const { sendActivityUserSummary } = require('./src/utils/dataManager');
 async function getStore() {
   const { default: Store } = await import('electron-store');
   return new Store();
@@ -218,7 +219,8 @@ if (!gotTheLock) {
 
     if (work_day.length === 0) {
       const data_work_day = {
-        client: client_data.name,
+        client: client_data,
+        date: new Date().toLocaleDateString(),
         startWork: convertDate(activityData.presence.timestamp.split(' ')[1]),
         endWork: '00:00',
         timeWorked: '00:00',
@@ -232,12 +234,13 @@ if (!gotTheLock) {
 
       const lastItem = work_day[work_day.length - 1];
 
-      if (lastItem.client !== client_data.name) {
+      if (lastItem.client.name !== client_data.name) {
 
         lastItem.endWork = convertDate(activityData.presence.timestamp.split(' ')[1]);
         lastItem.timeWorked = calculateTimeDifference(lastItem.startWork, lastItem.endWork);
         const data_work_day = {
-          client: client_data.name,
+          client: client_data,
+          date: new Date().toLocaleDateString(),
           startWork: convertDate(activityData.presence.timestamp.split(' ')[1]),
           endWork: '00:00',
           timeWorked: '00:00',
@@ -256,7 +259,8 @@ if (!gotTheLock) {
     });
 
     checkDataAndSend(activityData)
-
+    sendActivityUserSummary();
+    console.log(store.get('work-day'));
     activityData.partner_id = null;
     activityData.description = null;
     modalWindows.close()
@@ -274,6 +278,11 @@ if (!gotTheLock) {
     store.delete('work-day');
     console.log('Datos borrados desde el boton', store.get('work-day'));
   });
+
+  ipcMain.on('sendSummary' , async () => {
+    sendActivityUserSummary();
+  });
+
 
   ipcMain.on('add-row', async (event, flag) => {
     console.log(event, flag)
