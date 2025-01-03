@@ -100,15 +100,15 @@ function saveRow(button, originalStartTime, originalEndTime) {
 						timeWorked: calculateTimeDifference(startInput.value, endInput.value)
 					};
 				}
-
+			
+				
 				row.querySelector('.time-work').textContent = calculateTimeDifference(startInput.value, endInput.value);
 				return item;
 			});
+			localStorage.setItem('workDayData', JSON.stringify(updatedData));
 			row.querySelector('.start-time').textContent = startInput.value;
 			row.querySelector('.end-time').textContent = endInput.value;
-			localStorage.setItem('workDayData', JSON.stringify(updatedData));
-			const data = JSON.parse(localStorage.getItem('workDayData'));
-			ipcRenderer.send('update-work-day', data);
+			ipcRenderer.send('update-work-day', updatedData);
 
 			row.querySelector('td:last-child').innerHTML = `<button class="edit-btn" onclick="editRow(this)">${editIcon}</button>`;
 		}
@@ -122,11 +122,10 @@ function saveRow(button, originalStartTime, originalEndTime) {
 		const endInput = document.querySelector('.end-time input').value;
 		
 		const workDayData = JSON.parse(localStorage.getItem('workDayData'));
-		console.log(startInput, workDayData[workDayData.length - 1].endWork);
 		if (startInput >= endInput) {
 			document.getElementById('message-error').textContent = 'LA HORA DE INCIO NO PUEDE SER MAYOR O IGUAL A LA HORA DE FIN';
 			return;
-		} else if (startInput < workDayData[workDayData.length - 1].endWork ) {
+		} else if (workDayData.some (item => startInput < item.endWork && endInput > item.startWork)) {
 			document.getElementById('message-error').textContent = 'TRASLAPE DE HORAS';
 			return;
 		} else if (selectClientText === '') {
@@ -145,20 +144,31 @@ function saveRow(button, originalStartTime, originalEndTime) {
 			timeWorked: calculateTimeDifference(startInput, endInput)
 		}
 
-		if (workDayData.length > 0 && workDayData[workDayData.length - 1].endWork === '00:00') { 
-			const lastItem = workDayData[workDayData.length - 1];
-			lastItem.endWork = newRecord.startWork;
-			lastItem.timeWorked = calculateTimeDifference(lastItem.startWork, lastItem.endWork);
-			const updatedData = [...workDayData.slice(0, -1), lastItem, newRecord];
-			localStorage.setItem('workDayData', JSON.stringify(updatedData));
-			ipcRenderer.send('update-work-day', updatedData);
-		} else {
-			btnSave.value = 'create';
-			ipcRenderer.send('add-row', false);
-			const updatedData = [...workDayData, newRecord];
-			localStorage.setItem('workDayData', JSON.stringify(updatedData));
-			ipcRenderer.send('update-work-day', updatedData);
-		}
+		
+		
+
+		// if (workDayData.length > 0 && workDayData[workDayData.length - 1].endWork === '00:00') { 
+		// 	const lastItem = workDayData[workDayData.length - 1];
+		// 	lastItem.endWork = newRecord.startWork;
+		// 	lastItem.timeWorked = calculateTimeDifference(lastItem.startWork, lastItem.endWork);
+		// 	const updatedData = [...workDayData.slice(0, -1), lastItem, newRecord];
+		// 	localStorage.setItem('workDayData', JSON.stringify(updatedData));
+		// 	ipcRenderer.send('update-work-day', updatedData);
+		// } else {
+		// Aplicar la animación fade-in a la tabla o a las filas de la tabla
+		const tbody = document.getElementById('work-day-tbody');
+		tbody.classList.add('fade-in'); 
+  
+		setTimeout(() => {
+		  tbody.classList.remove('fade-in'); 
+		  
+		}, 100); 
+		btnSave.value = 'create';
+		ipcRenderer.send('add-row', false);
+		const updatedData = [...workDayData, newRecord];
+		const order_data = updatedData.sort((a, b) => a.startWork.localeCompare(b.startWork));
+		localStorage.setItem('workDayData', JSON.stringify(order_data));
+		ipcRenderer.send('update-work-day', order_data)
 	}
 }
 
@@ -216,6 +226,7 @@ function addRow(button) {
 		tbody = document.getElementById('work-day-tbody');
 		rowsData = tbody.getElementsByTagName('tr');;
 		const row = document.createElement('tr');
+		row.classList.add('fade-in');
 		showClients();
 		row.innerHTML = `
 		<td><select name="client" id="client" class="client"></td>
