@@ -11,8 +11,9 @@ function getFormattedTimestamp() {
 function presenceNotification(activityData) {
 	notifier.notify(
 		{
-			title: 'Confiar Prencencia de Presencia',
-			message: 'Por favor, confirma tu presencia.',
+			appID: 'Time Tracker',
+			title: 'Time Tracker',
+			message: 'Click aqui para confirmar tu presencia',
 			sound: true,
 			wait: true,
 			reply: true,
@@ -24,8 +25,8 @@ function presenceNotification(activityData) {
 			}
 			
 			const formattedTime = getFormattedTimestamp();
-
-			if (metadata.activationType === 'clicked' || metadata.activationType === 'dismissed') {
+			
+			if (response!='timeout') {
 				console.log('prueba modal desde la notificacion -------------------------->');
 				createModalWindow();
 				console.log(`Presencia confirmada a las: ${formattedTime}`);
