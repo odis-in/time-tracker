@@ -1,10 +1,7 @@
 const { ipcRenderer } = require('electron');
 const { calculateTimeDifference } = require('../utils/calculateTimeDifference');
 const { getClients } = require("../odoo/getClients");
-function getFormattedTimestamp() {
-	const now = new Date();
-	return now.toISOString().replace('T', ' ').substring(0, 19);
-}
+
 const editIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" width="20" height="20" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
 <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
 </svg>`
@@ -73,12 +70,17 @@ function editRow(button) {
 
 function saveRow(button, originalStartTime, originalEndTime) {
 	const btnSave = document.querySelector('.btn-add');
+	const btnSend = document.getElementById('btn-send');
+	const now = new Date().toLocaleTimeString('es-ES', { hour12: false, hour: '2-digit', minute: '2-digit' });
 	if (btnSave.value != 'no_create') {
 		const row = button.closest('tr');
 		const startInput = row.querySelector('.start-time input');
 		const endInput = row.querySelector('.end-time input');
 		const index = row.rowIndex - 1;
-		console.log(index);
+		if ( startInput.value > now || endInput.value > now) {
+			document.getElementById('message-error').textContent = 'NO SE PUEDE INGRESAR UNA HORA MAYOR A LA ACTUAL';
+			return;
+		}
 		if (startInput.value >= endInput.value) {
 			document.getElementById('message-error').textContent = 'LA HORA DE INCIO NO PUEDE SER MAYOR O IGUAL A LA HORA DE FIN';
 		} else {
@@ -116,11 +118,15 @@ function saveRow(button, originalStartTime, originalEndTime) {
 			row.querySelector('td:last-child').innerHTML = `<button class="edit-btn" onclick="editRow(this)">${editIcon}</button>`;
 		}
 	} else {
-		btnSave.style.display = 'block';
+		btnSave.disabled = false;
+		btnSave.style.cursor = 'pointer';
+		btnSend.disabled = false;
+		btnSend.style.cursor = 'pointer';
 		const selectClient = document.querySelector('.client');
 		const selectClientIndex = selectClient.selectedIndex;
 		const selectClientText = selectClient.options[selectClientIndex].text;
-		const now = new Date().toLocaleTimeString().slice(0, 5);
+		
+		
 		
 		const startInput = document.querySelector('.start-time input').value;
 		const endInput = document.querySelector('.end-time input').value;
@@ -132,7 +138,7 @@ function saveRow(button, originalStartTime, originalEndTime) {
 		} else if (workDayData.some (item => startInput < item.endWork && endInput > item.startWork)) {
 			document.getElementById('message-error').textContent = 'TRASLAPE DE HORAS';
 			return;
-		} else if (startInput > now || endInput > now) {
+		} else if (startInput > now || endInput	> now) {
 			document.getElementById('message-error').textContent = 'NO SE PUEDE INGRESAR UNA HORA MAYOR A LA ACTUAL';
 			return;
 		}else if (selectClientText === '') {
@@ -182,7 +188,13 @@ function saveRow(button, originalStartTime, originalEndTime) {
 
 function cancelEdit(button, originalStartTime, originalEndTime) {
 	const btnSave = document.querySelector('.btn-add');
-	btnSave.style.display = 'block';
+	const btnSend = document.getElementById('btn-send');
+	btnSave.disabled = false;
+	btnSave.style.cursor = 'pointer';
+	btnSave.style.backgroundColor = '#0056b3';
+	btnSend.disabled = false;
+	btnSend.style.backgroundColor = '#0056b3';
+	btnSend.style.cursor = 'pointer';
 	if(btnSave.value != 'no_create'){
 	const row = button.closest('tr');
 	document.getElementById('message-error').textContent = '';
@@ -226,7 +238,12 @@ function deleteRow(button) {
 
 function addRow(button) {
 	const btnSave = document.querySelector('.btn-add');
-	btnSave.style.display = 'none';
+	const btnSend = document.getElementById('btn-send');
+	btnSave.disabled = true;
+	btnSave.style.cursor = 'not-allowed';
+	btnSend.disabled = true;
+	btnSend.style.cursor = 'not-allowed';
+	
 	
 	console.log(btnSave.value);
 	if (btnSave.value === 'create') {
@@ -300,6 +317,11 @@ document.addEventListener('DOMContentLoaded', () => {
 		renderWorkDayData();
 	});
 
+	
+	document.getElementById('btn-send').addEventListener('click', () => {
+		ipcRenderer.send('sendSummary');
+	});
+
 });
 
 document.getElementById('logout').addEventListener('click', () => {
@@ -311,8 +333,4 @@ document.getElementById('delete_data').addEventListener('click', () => {
 	localStorage.removeItem('workDayData');
 });
 
-document.getElementById('btn-send').addEventListener('click', () => {
-	ipcRenderer.send('sendSummary');
-	console.log('Enviar datos');
-});
 

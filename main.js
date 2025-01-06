@@ -64,12 +64,10 @@ if (!gotTheLock) {
       {
         label: 'Mostrar',
         click: () => {
-          const mainWindow = getMainWindow();
-          const loginWindow = getLoginWindow();
           if (session) {
-            mainWindow.show();
+            createMainWindow();
           } else {
-            loginWindow.show();
+            createLoginWindow();
           }
         }
       },
@@ -121,7 +119,8 @@ if (!gotTheLock) {
       console.log(username, password, url, db);
       if (username && password) {
         createMainWindow();
-
+        session = true;
+        console.log('Credenciales encontradas:', username, password, url, db, session);
         const clients = await getClients();
         const store = await getStore();
         store.set('clients', clients);
@@ -149,7 +148,7 @@ if (!gotTheLock) {
   app.whenReady().then(() => {
     verifyCredentialsOnStart();
     createTray();
-
+    
     ipcMain.handle('login', async (event, username, password, url, timeNotification, db) => {
       try {
         const uid = await authenticateUser(username, password, url, db);
@@ -259,7 +258,6 @@ if (!gotTheLock) {
     });
 
     checkDataAndSend(activityData)
-    sendActivityUserSummary();
     console.log(store.get('work-day'));
     activityData.partner_id = null;
     activityData.description = null;
@@ -279,20 +277,9 @@ if (!gotTheLock) {
     console.log('Datos borrados desde el boton', store.get('work-day'));
   });
 
-  ipcMain.on('sendSummary' , async () => {
+  ipcMain.on('sendSummary' , () => {
     sendActivityUserSummary();
-  });
-
-
-  ipcMain.on('add-row', async (event, flag) => {
-    console.log(event, flag)
-    if (flag) {
-      stopCronJobs(); console.log('Cron jobs detenidos');
-    } else { 
-      setupCronJobs(); 
-    }
-
-
+    console.log('Enviando resumen de actividad');
   });
 
   ipcMain.on('login-success', () => {

@@ -44,6 +44,8 @@ async function sendDataSummary(modelName, activityData) {
             }
         });
 
+        dataSummary.map( (data) => { console.log(data) });
+
         models.methodCall('execute_kw', [db, uid, password, modelName, 'create', [dataSummary]], (err, result) => {
             if (err) {
                 console.error('Error al crear el registro en Odoo:', err);
