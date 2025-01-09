@@ -11,8 +11,8 @@ function getFormattedTimestamp() {
 function presenceNotification(activityData) {
 	notifier.notify(
 		{
-			appID: 'Time Tracker',
-			title: 'Time Tracker',
+			// appID: 'Time Tracker',
+			// title: 'Time Tracker',
 			message: 'Click aqui para confirmar tu presencia',
 			sound: true,
 			wait: true,

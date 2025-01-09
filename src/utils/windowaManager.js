@@ -101,8 +101,8 @@ function createModalWindow() {
     parent: mainWindow,
     // modal: true,
     // show: false,
-    width: 400,
-    height: 300,
+    width: 415,
+    height: 340,
     // resizable: false,
     webPreferences: {
       preload: path.join(__dirname, '../preload.js'),

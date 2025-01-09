@@ -166,9 +166,13 @@ if (!gotTheLock) {
   ipcMain.on('close-main-window', () => {
     const mainWindow = getMainWindow();
     const loginWindow = getLoginWindow();
-
     if (mainWindow) mainWindow.close();
     if (loginWindow) loginWindow.close();
+  });
+
+  ipcMain.on('close-modal-window', () => {
+    const modalWindows = getModalWindow();
+    if (modalWindows) modalWindows.close();
   });
 
   ipcMain.on('logout', async () => {
@@ -268,6 +272,7 @@ if (!gotTheLock) {
   ipcMain.handle('get-work-day', async (event) => {
     const store = await getStore();
     const work_day = store.get('work-day') || [];
+    console.log(work_day);
     return work_day;
   });
 

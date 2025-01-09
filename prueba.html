@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hora con Timepicker</title>
+    <link rel="stylesheet" href="node_modules/timepicker/jquery.timepicker.css">
+</head>
+<body>
+
+    <h2>Selecciona una hora (formato 12 horas)</h2>
+    <input id="timepicker" type="text" placeholder="Ejemplo: 03:15 PM">
+
+    <script src="node_modules/jquery/dist/jquery.min.js"></script>
+    <script src="node_modules/timepicker/jquery.timepicker.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#timepicker').timepicker({
+                timeFormat: 'h:i A', // Formato de 12 horas con AM/PM
+                interval: 30,        // Intervalo de 30 minutos
+                minTime: '12:00 AM', // Hora mínima
+                maxTime: '11:59 PM', // Hora máxima
+                defaultTime: '12:00 PM', // Hora por defecto
+                startTime: '12:00 AM', // Hora de inicio
+                dynamic: false,      // Para deshabilitar ajustes dinámicos
+            });
+        });
+    </script>
+
+</body>
+</html>

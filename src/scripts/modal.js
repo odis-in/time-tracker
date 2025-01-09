@@ -49,4 +49,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     showClients();    
 
+    const closeButton = document.getElementById('close');
+    closeButton.addEventListener('click', () => {
+      ipcRenderer.send('close-modal-window');
+    });
+
 });

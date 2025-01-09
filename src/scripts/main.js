@@ -57,8 +57,8 @@ function editRow(button) {
 	const originalStartTime = startTimeCell.textContent;
 	const originalEndTime = endTimeCell.textContent;
 
-	startTimeCell.innerHTML = `<input type="time" class="edit-input" value="${originalStartTime}" />`;
-	endTimeCell.innerHTML = `<input type="time" class="edit-input" value="${originalEndTime}" />`;
+	startTimeCell.innerHTML = `<input type="time" class="edit-input" placeholer="00:00" value="${originalStartTime}" />`;
+	endTimeCell.innerHTML = `<input type="time" class="edit-input" placeholer="00:00" value="${originalEndTime}" />`;
 
 	const actionCell = row.querySelector('td:last-child');
 	actionCell.innerHTML = `
@@ -70,7 +70,7 @@ function editRow(button) {
 
 function saveRow(button, originalStartTime, originalEndTime) {
 	const btnSave = document.querySelector('.btn-add');
-	const btnSend = document.getElementById('btn-send');
+	// const btnSend = document.getElementById('btn-send');
 	const now = new Date().toLocaleTimeString('es-ES', { hour12: false, hour: '2-digit', minute: '2-digit' });
 	if (btnSave.value != 'no_create') {
 		const row = button.closest('tr');
@@ -120,8 +120,8 @@ function saveRow(button, originalStartTime, originalEndTime) {
 	} else {
 		btnSave.disabled = false;
 		btnSave.style.cursor = 'pointer';
-		btnSend.disabled = false;
-		btnSend.style.cursor = 'pointer';
+		// btnSend.disabled = false;
+		// btnSend.style.cursor = 'pointer';
 		const selectClient = document.querySelector('.client');
 		const selectClientIndex = selectClient.selectedIndex;
 		const selectClientText = selectClient.options[selectClientIndex].text;
@@ -188,13 +188,13 @@ function saveRow(button, originalStartTime, originalEndTime) {
 
 function cancelEdit(button, originalStartTime, originalEndTime) {
 	const btnSave = document.querySelector('.btn-add');
-	const btnSend = document.getElementById('btn-send');
+	// const btnSend = document.getElementById('btn-send');
 	btnSave.disabled = false;
 	btnSave.style.cursor = 'pointer';
 	btnSave.style.backgroundColor = '#0056b3';
-	btnSend.disabled = false;
-	btnSend.style.backgroundColor = '#0056b3';
-	btnSend.style.cursor = 'pointer';
+	// btnSend.disabled = false;
+	// btnSend.style.backgroundColor = '#0056b3';
+	// btnSend.style.cursor = 'pointer';
 	if(btnSave.value != 'no_create'){
 	const row = button.closest('tr');
 	document.getElementById('message-error').textContent = '';
@@ -238,11 +238,11 @@ function deleteRow(button) {
 
 function addRow(button) {
 	const btnSave = document.querySelector('.btn-add');
-	const btnSend = document.getElementById('btn-send');
+	// const btnSend = document.getElementById('btn-send');
 	btnSave.disabled = true;
 	btnSave.style.cursor = 'not-allowed';
-	btnSend.disabled = true;
-	btnSend.style.cursor = 'not-allowed';
+	// // btnSend.disabled = true;
+	// // btnSend.style.cursor = 'not-allowed';
 	
 	
 	console.log(btnSave.value);
@@ -255,8 +255,8 @@ function addRow(button) {
 		showClients();
 		row.innerHTML = `
 		<td><select name="client" id="client" class="client"></td>
-		<td class="start-time"><input type="time" class="edit-input"></td>
-		<td class="end-time edit-input"><input type="time" class="edit-input"></td>
+		<td class="start-time"><input type="time"  class="edit-input"></td>
+		<td class="end-time edit-input"><input type="time"  class="edit-input"></td>
 		<td>00:00:00</td>
 		<td>
 			<button class="save-btn" onclick="saveRow(this)">${saveIcon}</button>
@@ -267,6 +267,7 @@ function addRow(button) {
 		tbody.insertBefore(row, tbody.firstChild);
 		btnSave.value = 'no_create';
 		ipcRenderer.send('add-row', true);
+
 	}
 
 }
@@ -274,15 +275,26 @@ function addRow(button) {
 
 async function renderWorkDayData() {
 	const workDayData = await ipcRenderer.invoke('get-work-day')
-	localStorage.setItem('workDayData', JSON.stringify(workDayData));
+	console.log(workDayData);
+	const today = new Date();
+	const todayFormatted = today.toLocaleDateString();
+	console.log(todayFormatted)
+
+	const filteredData = workDayData.filter(item => {
+    const itemDate = item.date;
+    return itemDate >= todayFormatted;
+	});
+
+	localStorage.setItem('workDayData', JSON.stringify(filteredData));
+
 	const tbody = document.getElementById('work-day-tbody');
 	tbody.innerHTML = '';
-	if (workDayData.length === 0) {
+	if (filteredData.length === 0) {
 		const emptyRow = document.createElement('tr');
 		emptyRow.innerHTML = `<td colspan="5">No hay datos disponibles</td>`;
 		tbody.appendChild(emptyRow);
 	}
-	workDayData.forEach(item => {
+	filteredData.forEach(item => {
 		const row = document.createElement('tr');
 
 		row.innerHTML = `
@@ -315,6 +327,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	ipcRenderer.on('work-day-updated', () => {
 		renderWorkDayData();
+		const btnSave = document.querySelector('.btn-add');
+		btnSave.disabled = false;
+		btnSave.style.cursor = 'pointer';
+		btnSave.value = 'create';
 	});
 
 	
