@@ -28,10 +28,10 @@ function createLoginWindow() {
 
   loginWindow.loadFile('./src/pages/login.html');
 
-  loginWindow.on('minimize', (event) => {
-    event.preventDefault();
-    loginWindow.hide();
-  });
+  // loginWindow.on('minimize', (event) => {
+  //   event.preventDefault();
+  //   loginWindow.hide();
+  // });
 
   loginWindow.on('close', (event) => {
     if (!app.isQuiting) {
@@ -54,7 +54,7 @@ function createMainWindow() {
   }
 
   mainWindow = new BrowserWindow({
-    width: 850,
+    width: 950,
     height: 600,
     webPreferences: {
       preload: path.join(__dirname, '../preload.js'),
@@ -72,10 +72,10 @@ function createMainWindow() {
 
   // mainWindow.webContents.openDevTools();
 
-  mainWindow.on('minimize', (event) => {
-    event.preventDefault();
-    mainWindow.hide();
-  });
+  // mainWindow.on('minimize', (event) => {
+  //   event.preventDefault();
+  //   mainWindow.hide();
+  // });
 
   mainWindow.on('close', (event) => {
     if (!app.isQuiting) {
@@ -118,10 +118,10 @@ function createModalWindow() {
 
   modalWindow.loadFile('./src/pages/modal.html');
 
-  modalWindow.on('minimize', (event) => {
-    event.preventDefault();
-    modalWindow.hide();
-  });
+  // modalWindow.on('minimize', (event) => {
+  //   event.preventDefault();
+  //   modalWindow.hide();
+  // });
 
   modalWindow.on('close', (event) => {
     if (!app.isQuiting) {

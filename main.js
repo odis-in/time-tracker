@@ -23,6 +23,7 @@ let addressJob = null;
 let session = null;
 
 const activityData = {
+  odoo_id: null,
   presence: null,
   screenshot: null,
   latitude: null,
@@ -80,7 +81,7 @@ if (!gotTheLock) {
       }
     ]);
 
-    tray.setToolTip('Mi Aplicación Electron');
+    tray.setToolTip('time-tracker');
     tray.setContextMenu(contextMenu);
   }
 
@@ -124,7 +125,7 @@ if (!gotTheLock) {
         const clients = await getClients();
         const store = await getStore();
         store.set('clients', clients);
-        setupCronJobs();
+        // setupCronJobs();
         console.log(activityData);
       } else {
         createLoginWindow();
@@ -223,7 +224,7 @@ if (!gotTheLock) {
     if (work_day.length === 0) {
       const data_work_day = {
         client: client_data,
-        date: new Date().toLocaleDateString(),
+        date: new Date().toLocaleDateString('en-US'),
         startWork: convertDate(activityData.presence.timestamp.split(' ')[1]),
         endWork: '00:00',
         timeWorked: '00:00',
@@ -243,7 +244,7 @@ if (!gotTheLock) {
         lastItem.timeWorked = calculateTimeDifference(lastItem.startWork, lastItem.endWork);
         const data_work_day = {
           client: client_data,
-          date: new Date().toLocaleDateString(),
+          date: new Date().toLocaleDateString('en-US'),
           startWork: convertDate(activityData.presence.timestamp.split(' ')[1]),
           endWork: '00:00',
           timeWorked: '00:00',
@@ -290,7 +291,7 @@ if (!gotTheLock) {
   ipcMain.on('login-success', () => {
     createMainWindow();
     session = true;
-    setupCronJobs();
+    // setupCronJobs();
 
     const loginWindow = getLoginWindow();
     if (loginWindow) {

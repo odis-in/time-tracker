@@ -6,7 +6,6 @@ async function showClients() {
         const clients = await getClients();
         console.log(clients); 
 
-        
         const clientSelect = document.getElementById('client');
 
         if (!clients || clients.length === 0) {
@@ -18,6 +17,11 @@ async function showClients() {
         clientSelect.innerHTML = '';
 
         clients.forEach(client => {
+            // Omitir cliente cuyo nombre sea un solo punto
+            if (client.name === '.') {
+                return;
+            }
+
             const option = document.createElement('option');
             option.value = client.id; 
             option.textContent = client.name; 
@@ -26,11 +30,11 @@ async function showClients() {
     } catch (error) {
         console.error('Error al obtener los clientes:', error);
 
-
         const clientSelect = document.getElementById('client');
         clientSelect.innerHTML = '<option value="">Error al cargar los clientes</option>';
     }
 }
+
 
 document.addEventListener('DOMContentLoaded', () => {
 

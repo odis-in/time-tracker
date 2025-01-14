@@ -14,6 +14,8 @@ async function sendData(modelName, activityData) {
 
         activityData.user_id = uid;
 
+        console.log(activityData);
+
         models.methodCall('execute_kw', [db, uid, password, modelName, 'create', [activityData]], (err, result) => {
             if (err) {
                 console.error('Error al crear el registro en Odoo:', err);

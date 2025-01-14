@@ -28,7 +28,7 @@ function convertDate(hour) {
         const date = new Date(dateISO); 
 
         
-        const hourLocal = date.toLocaleTimeString('es-ES', { hour12: false, hour: '2-digit', minute: '2-digit' });
+        const hourLocal = date.toLocaleTimeString('es-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
 
         console.log('hourLocal', hourLocal); 
         return hourLocal; 
@@ -36,7 +36,7 @@ function convertDate(hour) {
 }
 
 function toCorrectISO(dateInput) {
-   
+   console.log('dateInput', dateInput);
     const localDate = new Date(dateInput);
 
     if (isNaN(localDate)) {

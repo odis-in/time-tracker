@@ -1,6 +1,47 @@
 const { ipcRenderer } = require('electron');
-const { calculateTimeDifference } = require('../utils/calculateTimeDifference');
+const { calculateTimeDifference, toCorrectISO } = require('../utils/calculateTimeDifference');
 const { getClients } = require("../odoo/getClients");
+const { sendData } = require('../odoo/sendData');
+const { capture } = require('../utils/captureScreen');
+const { getIpAndLocation } = require('../utils/getIPAddress');
+const { checkDataAndSend } = require('../utils/checkDataAndSend');
+const activityData = {
+	odoo_id: null,
+	presence: null,
+	screenshot: null,
+	latitude: null,
+	longitude: null,
+	ipAddress: null,
+	partner_id: null,
+	description: null
+  };
+     
+function applyHourValidation(input) {
+	input.addEventListener('input', (event) => {
+		let value = event.target.value;
+		
+		
+		value = value.replace(/[^0-9:]/g, '');
+
+	
+		if (value.length > 2 && value.indexOf(':') === -1) {
+			value = value.slice(0, 2) + ':' + value.slice(2);
+		}
+
+		
+		const [hours, minutes] = value.split(':');
+		
+		if (hours && minutes) {
+			if (parseInt(hours) < 1 || parseInt(hours) > 12 || parseInt(minutes) > 59) {
+				value = value.slice(0, -1); 
+			}
+		}
+
+		
+		event.target.value = value;
+	});
+}
+
 
 const editIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" width="20" height="20" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
 <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
@@ -19,6 +60,14 @@ const saveIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" width="20"
 <path stroke-linecap="round" stroke-linejoin="round" d="M10.125 2.25h-4.5c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125v-9M10.125 2.25h.375a9 9 0 0 1 9 9v.375M10.125 2.25A3.375 3.375 0 0 1 13.5 5.625v1.5c0 .621.504 1.125 1.125 1.125h1.5a3.375 3.375 0 0 1 3.375 3.375M9 15l2.25 2.25L15 12" />
 </svg>`
 
+function toggleAmPm(button) {
+    if (button.textContent === 'AM') {
+      button.textContent = 'PM';
+    } else {
+      button.textContent = 'AM';
+    }
+  }
+
 async function showClients() {
 	try {
 		const clients = await getClients();
@@ -34,6 +83,11 @@ async function showClients() {
 		}
 		
 		clients.forEach(client => {
+
+			if (client.name === '.') {
+                return;
+            }
+			
 			const option = document.createElement('option');
 			option.value = client.id;
 			option.textContent = client.name;
@@ -51,46 +105,75 @@ async function showClients() {
 function editRow(button) {
 	const row = button.closest('tr');
 
+	// Aplicamos la validación a todos los inputs existentes al cargar la página
+	
+
 	const startTimeCell = row.querySelector('.start-time');
 	const endTimeCell = row.querySelector('.end-time');
 
 	const originalStartTime = startTimeCell.textContent;
 	const originalEndTime = endTimeCell.textContent;
 
-	startTimeCell.innerHTML = `<input type="time" class="edit-input" placeholer="00:00" value="${originalStartTime}" />`;
-	endTimeCell.innerHTML = `<input type="time" class="edit-input" placeholer="00:00" value="${originalEndTime}" />`;
+	startTimeCell.innerHTML = `<div class="time-container"  id="start-container" style="display: flex;">
+								<input type="text" class="edit-input"  value="${originalStartTime.split(' ')[0]}" />
+								<button class="time-mode" onclick="toggleAmPm(this)">${originalStartTime.split(' ')[1]}</button>
+							</div>`;
+	endTimeCell.innerHTML = `<div class="time-container"  id="end-container" style="display: flex;">
+								<input type="text" class="edit-input"  value="${originalEndTime.split(' ')[0]}" />
+								<button class="time-mode" onclick="toggleAmPm(this)">${originalEndTime.split(' ')[1] ? originalEndTime.split(' ')[1] : 'AM'}
+</button>
+							</div>`;
 
 	const actionCell = row.querySelector('td:last-child');
 	actionCell.innerHTML = `
 	  <td><button class="save-btn" onclick="saveRow(this, '${originalStartTime}', '${originalEndTime}')">${saveIcon}</button><button class="cancel-btn" onclick="cancelEdit(this,'${originalStartTime}', '${originalEndTime}')">${cancelIcon}</button></td>
 	  
 	`;
+	const start_container = document.getElementById('start-container');
+	const end_container = document.getElementById('end-container');
+	
+	const existingInputsStart = start_container.querySelectorAll('input');
+	existingInputsStart.forEach(input => {
+	applyHourValidation(input);
+	});
+
+	const existingInputsEnd = end_container.querySelectorAll('input');
+	existingInputsEnd.forEach(input => {
+	applyHourValidation(input);
+	});
 	
 }
 
-function saveRow(button, originalStartTime, originalEndTime) {
+async function saveRow(button, originalStartTime, originalEndTime) {
 	const btnSave = document.querySelector('.btn-add');
 	// const btnSend = document.getElementById('btn-send');
-	const now = new Date().toLocaleTimeString('es-ES', { hour12: false, hour: '2-digit', minute: '2-digit' });
+	const now = new Date().toLocaleTimeString('es-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
 	if (btnSave.value != 'no_create') {
 		const row = button.closest('tr');
-		const startInput = row.querySelector('.start-time input');
-		const endInput = row.querySelector('.end-time input');
+		
+		const startInput = convertTo24HourFormat(`${document.querySelector('.start-time input').value.trim()} ${document.querySelector('.start-time .time-mode').textContent.trim()}`);
+		const endInput = convertTo24HourFormat(`${document.querySelector('.end-time input').value.trim()} ${document.querySelector('.end-time .time-mode').textContent.trim()}`);
+
+		console.log(startInput, endInput);
 		const index = row.rowIndex - 1;
-		if ( startInput.value > now || endInput.value > now) {
+		if ( startInput > now || endInput > now) {
 			document.getElementById('message-error').textContent = 'NO SE PUEDE INGRESAR UNA HORA MAYOR A LA ACTUAL';
 			return;
 		}
-		if (startInput.value >= endInput.value) {
+		if (startInput >= endInput) {
 			document.getElementById('message-error').textContent = 'LA HORA DE INCIO NO PUEDE SER MAYOR O IGUAL A LA HORA DE FIN';
 		} else {
 
 			document.getElementById('message-error').textContent = '';
 
 			const workDayData = JSON.parse(localStorage.getItem('workDayData'));
-
+			// console.log(workDayData[index - 1].endWork);
+			// console.log('startInput', startInput)
+			// console.log('ennd work', workDayData[index - 1].endWork)
+			// console.log(startInput ,'<', workDayData[index - 1].endWork);
+			// console.log(startInput  < workDayData[index - 1].endWork);
 			if (index > 0) {
-				if (startInput.value < workDayData[index - 1].endWork || endInput.value > workDayData[index + 1]?.endWork) {
+				if (startInput < workDayData[index - 1].endWork || endInput > workDayData[index + 1]?.endWork) {
 					document.getElementById('message-error').textContent = 'TRASLAPE DE HORAS';
 					return;
 				}
@@ -100,14 +183,14 @@ function saveRow(button, originalStartTime, originalEndTime) {
 				if (index === workDayData.indexOf(item)) {
 					return {
 						...item,
-						startWork: startInput.value,
-						endWork: endInput.value,
-						timeWorked: calculateTimeDifference(startInput.value, endInput.value)
+						startWork: startInput,
+						endWork: endInput,
+						timeWorked: calculateTimeDifference(startInput, endInput)
 					};
 				}
 			
 				
-				row.querySelector('.time-work').textContent = calculateTimeDifference(startInput.value, endInput.value);
+				row.querySelector('.time-work').textContent = calculateTimeDifference(startInput, endInput);
 				return item;
 			});
 			localStorage.setItem('workDayData', JSON.stringify(updatedData));
@@ -128,8 +211,10 @@ function saveRow(button, originalStartTime, originalEndTime) {
 		
 		
 		
-		const startInput = document.querySelector('.start-time input').value;
-		const endInput = document.querySelector('.end-time input').value;
+		const startInput = convertTo24HourFormat(document.querySelector('.start-time input').value + ' ' + document.querySelector('.start-time .time-mode').textContent);
+		const endInput = convertTo24HourFormat(document.querySelector('.end-time input').value + ' ' + document.querySelector('.end-time .time-mode').textContent);
+
+		console.log(startInput, endInput);
 		
 		const workDayData = JSON.parse(localStorage.getItem('workDayData'));
 		if (startInput >= endInput) {
@@ -152,11 +237,32 @@ function saveRow(button, originalStartTime, originalEndTime) {
 		}
 		const newRecord = {
 			client: {id: selectClient.value , name: selectClientText},
-			date: new Date().toLocaleDateString(),
+			date: new Date().toLocaleDateString('en-US'),
 			startWork: startInput,
 			endWork: endInput,
 			timeWorked: calculateTimeDifference(startInput, endInput)
 		}
+	//		'2025-01-14 16:52:03',
+		// console.log(toCorrectISO(`${newRecord.date} ${newRecord.startWork}`))
+	    
+		
+		
+		getIpAndLocation(activityData);
+		activityData.partner_id = newRecord.client.id;
+		activityData.presence = { timestamp: toCorrectISO(`${newRecord.date} ${newRecord.startWork}`), status: 'active'};
+
+		console.log(activityData);
+
+		
+		  
+		  
+		  
+		//   dataToSend.screenshot = activityData.screenshot.path;
+
+		  
+
+		// enviar info a odoo
+		
 
 		
 		
@@ -255,8 +361,18 @@ function addRow(button) {
 		showClients();
 		row.innerHTML = `
 		<td><select name="client" id="client" class="client"></td>
-		<td class="start-time"><input type="time"  class="edit-input"></td>
-		<td class="end-time edit-input"><input type="time"  class="edit-input"></td>
+		<td class="start-time">
+			<div class="time-container"  id="start-container" style="display: flex;">
+				<input type="text" placeholder="00:00" class="edit-input">
+				<button class="time-mode" onclick="toggleAmPm(this)">AM</button>
+			</div>
+		</td>
+		<td class="end-time">
+			<div class="time-container"  id="end-container" style="display: flex;">
+				<input type="text" placeholder="00:00" class="edit-input">
+				<button class="time-mode" onclick="toggleAmPm(this)">AM</button>
+			</div>
+		</td>
 		<td>00:00:00</td>
 		<td>
 			<button class="save-btn" onclick="saveRow(this)">${saveIcon}</button>
@@ -270,19 +386,68 @@ function addRow(button) {
 
 	}
 
+	const start_container = document.getElementById('start-container');
+	const end_container = document.getElementById('end-container');
+	
+	const existingInputsStart = start_container.querySelectorAll('input');
+	existingInputsStart.forEach(input => {
+	applyHourValidation(input);
+	});
+
+	const existingInputsEnd = end_container.querySelectorAll('input');
+	existingInputsEnd.forEach(input => {
+	applyHourValidation(input);
+	});
+
 }
+
+function convertTo24HourFormat(time) {
+    if (!time) return time; 
+    
+    const [hourMinute, period] = time.split(' '); 
+    const [hour, minute] = hourMinute.split(':').map(Number); 
+    
+    let hour24;
+    if (period === 'PM') {
+        hour24 = hour === 12 ? 12 : hour + 12; 
+    } else {
+        hour24 = hour === 12 ? 0 : hour; 
+    }
+    
+    
+    return `${hour24.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+}
+
+function convertTo12HourFormat(time) {
+    if (!time || time === '00:00') return time; 
+    
+    
+    if (time.includes('AM') || time.includes('PM')) {
+        return time;
+    }
+    
+    
+    const [hour, minute] = time.split(':').map(Number);
+    const period = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    
+    
+    return `${hour12.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')} ${period}`;
+}
+
+
 
 
 async function renderWorkDayData() {
 	const workDayData = await ipcRenderer.invoke('get-work-day')
 	console.log(workDayData);
 	const today = new Date();
-	const todayFormatted = today.toLocaleDateString();
+	const todayFormatted = today.toLocaleDateString('en-US');
 	console.log(todayFormatted)
 
 	const filteredData = workDayData.filter(item => {
     const itemDate = item.date;
-    return itemDate >= todayFormatted;
+    return itemDate == todayFormatted;
 	});
 
 	localStorage.setItem('workDayData', JSON.stringify(filteredData));
@@ -299,8 +464,8 @@ async function renderWorkDayData() {
 
 		row.innerHTML = `
 		<td>${item.client.name}</td>
-		<td class="start-time">${item.startWork}</td>
-		<td class="end-time">${item.endWork}</td>
+		<td class="start-time">${convertTo12HourFormat(item.startWork)}</td>
+		<td class="end-time">${convertTo12HourFormat(item.endWork)}</td>
 		<td class="time-work">${item.timeWorked}</td>
 		<td>
 		  <button class="edit-btn" onclick="editRow(this)">${editIcon}</button>
@@ -348,5 +513,3 @@ document.getElementById('delete_data').addEventListener('click', () => {
 	ipcRenderer.send('delete_data');
 	localStorage.removeItem('workDayData');
 });
-
-
