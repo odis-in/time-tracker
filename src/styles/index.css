@@ -356,3 +356,8 @@ tr:nth-child(even) {
   height: 40px;
   margin-left: 5px;
 }
+
+.tbody-disabled tr:not(:first-child) {
+  opacity: 0.5;
+  pointer-events: none; 
+}

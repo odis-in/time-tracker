@@ -109,7 +109,6 @@ if (!gotTheLock) {
 
     if (presenceJob || screenshotJob || addressJob) {
       console.log("Cron jobs ya están configurados");
-      console.log(presenceJob, screenshotJob, addressJob);
       return;
     }
   }
@@ -125,8 +124,7 @@ if (!gotTheLock) {
         const clients = await getClients();
         const store = await getStore();
         store.set('clients', clients);
-        // setupCronJobs();
-        console.log(activityData);
+        setupCronJobs();
       } else {
         createLoginWindow();
         session = false;
@@ -197,11 +195,17 @@ if (!gotTheLock) {
   ipcMain.on('update-work-day', async (event, data) => {
     const store = await getStore();
     const work_day = store.set('work-day', data);
-    console.log('Datos actualizados:', store.get('work-day'));
+    // console.log('Datos actualizados:', store.get('work-day'));
 
     BrowserWindow.getAllWindows().forEach(win => {
       win.webContents.send('work-day-updated', work_day);
     });
+  });
+
+  ipcMain.on('send-manual-data', async (event, manualData) => {
+    
+    checkDataAndSend(manualData);
+    
   });
 
   ipcMain.on('send-data', async (event, client, description) => {
@@ -261,26 +265,26 @@ if (!gotTheLock) {
     BrowserWindow.getAllWindows().forEach(win => {
       win.webContents.send('work-day-updated', work_day);
     });
-
-    checkDataAndSend(activityData)
-    console.log(store.get('work-day'));
+    modalWindows.close()
+    // const odoo_id = await checkDataAndSend(activityData);
+    checkDataAndSend(activityData); 
+    
+    
     activityData.partner_id = null;
     activityData.description = null;
-    modalWindows.close()
+    
   });
 
 
   ipcMain.handle('get-work-day', async (event) => {
     const store = await getStore();
     const work_day = store.get('work-day') || [];
-    console.log(work_day);
     return work_day;
   });
 
   ipcMain.on('delete_data', async () => {
     const store = await getStore();
     store.delete('work-day');
-    console.log('Datos borrados desde el boton', store.get('work-day'));
   });
 
   ipcMain.on('sendSummary' , () => {
@@ -291,7 +295,7 @@ if (!gotTheLock) {
   ipcMain.on('login-success', () => {
     createMainWindow();
     session = true;
-    // setupCronJobs();
+    setupCronJobs();
 
     const loginWindow = getLoginWindow();
     if (loginWindow) {

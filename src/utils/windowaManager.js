@@ -15,7 +15,7 @@ function createLoginWindow() {
     width: 700,
     height: 650,
     webPreferences: {
-      preload: path.join(__dirname, '../preload.js'),
+      // preload: path.join(__dirname, '../..preload.js'),
       nodeIntegration: true,
       contextIsolation: false,
     },
@@ -57,7 +57,7 @@ function createMainWindow() {
     width: 950,
     height: 600,
     webPreferences: {
-      preload: path.join(__dirname, '../preload.js'),
+      // preload: path.join(__dirname, '../preload.js'),
       nodeIntegration: true,
       contextIsolation: false,
     },

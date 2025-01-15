@@ -1,21 +1,9 @@
 const { ipcRenderer } = require('electron');
 const { calculateTimeDifference, toCorrectISO } = require('../utils/calculateTimeDifference');
 const { getClients } = require("../odoo/getClients");
-const { sendData } = require('../odoo/sendData');
-const { capture } = require('../utils/captureScreen');
+const {captureScreen } = require('../utils/captureScreen');
 const { getIpAndLocation } = require('../utils/getIPAddress');
-const { checkDataAndSend } = require('../utils/checkDataAndSend');
-const activityData = {
-	odoo_id: null,
-	presence: null,
-	screenshot: null,
-	latitude: null,
-	longitude: null,
-	ipAddress: null,
-	partner_id: null,
-	description: null
-  };
-     
+
 function applyHourValidation(input) {
 	input.addEventListener('input', (event) => {
 		let value = event.target.value;
@@ -103,6 +91,7 @@ async function showClients() {
 }
 
 function editRow(button) {
+	
 	const row = button.closest('tr');
 
 	// Aplicamos la validación a todos los inputs existentes al cargar la página
@@ -115,11 +104,11 @@ function editRow(button) {
 	const originalEndTime = endTimeCell.textContent;
 
 	startTimeCell.innerHTML = `<div class="time-container"  id="start-container" style="display: flex;">
-								<input type="text" class="edit-input"  value="${originalStartTime.split(' ')[0]}" />
+								<input type="text" class="edit-input" placeholder="00:00" value="${originalStartTime.split(' ')[0]}" />
 								<button class="time-mode" onclick="toggleAmPm(this)">${originalStartTime.split(' ')[1]}</button>
 							</div>`;
 	endTimeCell.innerHTML = `<div class="time-container"  id="end-container" style="display: flex;">
-								<input type="text" class="edit-input"  value="${originalEndTime.split(' ')[0]}" />
+								<input type="text" class="edit-input" placeholder="00:00" value="${originalEndTime.split(' ')[0]}" />
 								<button class="time-mode" onclick="toggleAmPm(this)">${originalEndTime.split(' ')[1] ? originalEndTime.split(' ')[1] : 'AM'}
 </button>
 							</div>`;
@@ -145,11 +134,20 @@ function editRow(button) {
 }
 
 async function saveRow(button, originalStartTime, originalEndTime) {
+	tbody = document.getElementById('work-day-tbody');
+	
 	const btnSave = document.querySelector('.btn-add');
 	// const btnSend = document.getElementById('btn-send');
 	const now = new Date().toLocaleTimeString('es-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
 	if (btnSave.value != 'no_create') {
 		const row = button.closest('tr');
+
+		const startInputValidate = document.querySelector('.start-time input').value;
+		const endInputValidate = document.querySelector('.end-time input').value;
+		if (startInputValidate === '' || endInputValidate === '') {
+			document.getElementById('message-error').textContent = 'DEBE INGRESAR UNA HORA VALIDA';
+			return
+		}
 		
 		const startInput = convertTo24HourFormat(`${document.querySelector('.start-time input').value.trim()} ${document.querySelector('.start-time .time-mode').textContent.trim()}`);
 		const endInput = convertTo24HourFormat(`${document.querySelector('.end-time input').value.trim()} ${document.querySelector('.end-time .time-mode').textContent.trim()}`);
@@ -209,14 +207,20 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 		const selectClientIndex = selectClient.selectedIndex;
 		const selectClientText = selectClient.options[selectClientIndex].text;
 		
-		
-		
+		const startInputValidate = document.querySelector('.start-time input').value;
+		const endInputValidate = document.querySelector('.end-time input').value;
+		if (startInputValidate === '' || endInputValidate === '') {
+			document.getElementById('message-error').textContent = 'DEBE INGRESAR UNA HORA VALIDA';
+			return
+		}
 		const startInput = convertTo24HourFormat(document.querySelector('.start-time input').value + ' ' + document.querySelector('.start-time .time-mode').textContent);
 		const endInput = convertTo24HourFormat(document.querySelector('.end-time input').value + ' ' + document.querySelector('.end-time .time-mode').textContent);
 
 		console.log(startInput, endInput);
 		
 		const workDayData = JSON.parse(localStorage.getItem('workDayData'));
+
+		
 		if (startInput >= endInput) {
 			document.getElementById('message-error').textContent = 'LA HORA DE INCIO NO PUEDE SER MAYOR O IGUAL A LA HORA DE FIN';
 			return;
@@ -245,19 +249,9 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 	//		'2025-01-14 16:52:03',
 		// console.log(toCorrectISO(`${newRecord.date} ${newRecord.startWork}`))
 	    
-		
-		
-		getIpAndLocation(activityData);
-		activityData.partner_id = newRecord.client.id;
-		activityData.presence = { timestamp: toCorrectISO(`${newRecord.date} ${newRecord.startWork}`), status: 'active'};
-
-		console.log(activityData);
-
-		
+	
 		  
-		  
-		  
-		//   dataToSend.screenshot = activityData.screenshot.path;
+		
 
 		  
 
@@ -278,7 +272,7 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 		// Aplicar la animación fade-in a la tabla o a las filas de la tabla
 		const tbody = document.getElementById('work-day-tbody');
 		tbody.classList.add('fade-in'); 
-  
+		tbody.classList.remove('tbody-disabled');
 		setTimeout(() => {
 		  tbody.classList.remove('fade-in'); 
 		  
@@ -289,6 +283,26 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 		const order_data = updatedData.sort((a, b) => a.startWork.localeCompare(b.startWork));
 		localStorage.setItem('workDayData', JSON.stringify(order_data));
 		ipcRenderer.send('update-work-day', order_data)
+
+
+		const activityData = {
+			odoo_id: null,
+			presence: null,
+			screenshot: null,
+			latitude: null,
+			longitude: null,
+			ipAddress: null,
+			partner_id: null,
+			description: null
+		  };
+			 
+		
+		await getIpAndLocation(activityData);
+		await captureScreen(activityData);
+		activityData.partner_id = newRecord.client.id;
+		activityData.presence = { timestamp: toCorrectISO(`${newRecord.date} ${newRecord.startWork}`), status: 'active'};
+
+		ipcRenderer.send('send-manual-data', activityData);
 	}
 }
 
@@ -315,6 +329,8 @@ function cancelEdit(button, originalStartTime, originalEndTime) {
 		ipcRenderer.send('add-row', false);
 		document.getElementById('message-error').textContent = '';
 	}
+	tbody = document.getElementById('work-day-tbody');
+	tbody.classList.remove('tbody-disabled');
 }
 
 function deleteRow(button) {
@@ -373,7 +389,7 @@ function addRow(button) {
 				<button class="time-mode" onclick="toggleAmPm(this)">AM</button>
 			</div>
 		</td>
-		<td>00:00:00</td>
+		<td>00:00</td>
 		<td>
 			<button class="save-btn" onclick="saveRow(this)">${saveIcon}</button>
 			<button class="cancel-btn" onclick="cancelEdit(this)">${cancelIcon}</button>
@@ -382,6 +398,11 @@ function addRow(button) {
 		// tbody.appendChild(row);
 		tbody.insertBefore(row, tbody.firstChild);
 		btnSave.value = 'no_create';
+		tbody.classList.add('tbody-disabled');
+		const startTimeInput = row.querySelector('.start-time input');
+		if (startTimeInput) {
+			startTimeInput.focus();
+		}
 		ipcRenderer.send('add-row', true);
 
 	}
@@ -498,18 +519,18 @@ document.addEventListener('DOMContentLoaded', () => {
 		btnSave.value = 'create';
 	});
 
-	
-	document.getElementById('btn-send').addEventListener('click', () => {
-		ipcRenderer.send('sendSummary');
-	});
+	// TO DO
+	// document.getElementById('btn-send').addEventListener('click', () => {
+	// 	ipcRenderer.send('sendSummary');
+	// });
 
 });
 
 document.getElementById('logout').addEventListener('click', () => {
 	ipcRenderer.send('logout');
 });
-
-document.getElementById('delete_data').addEventListener('click', () => {
-	ipcRenderer.send('delete_data');
-	localStorage.removeItem('workDayData');
-});
+// TO DO
+// document.getElementById('delete_data').addEventListener('click', () => {
+// 	ipcRenderer.send('delete_data');
+// 	localStorage.removeItem('workDayData');
+// });

@@ -40,6 +40,7 @@ async function handleData(activityData) {
             console.log('Datos enviados al servidor.');
 
             await sendLocalData(); // Enviar datos almacenados localmente si hay conexión
+            
         } catch (error) {
             console.error('Error al enviar datos al servidor, guardando en local:', error);
             saveDataLocally(activityData);
