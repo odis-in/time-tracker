@@ -1,6 +1,6 @@
 {
   "name": "time-tracker",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "time-tracker app",
   "main": "main.js",
   "scripts": {
@@ -8,16 +8,16 @@
     "pack": "build --dir",
     "dist": "electron-builder"
   },
+  "repository": "https://github.com/carlosaid/electron-project",
+  "publish": {
+    "provider": "github",
+    "releaseType": "release"
+  },
   "author": "",
   "license": "ISC",
   "build": {
     "appId": "com.electron-project",
     "asar": false,
-    "publish": {
-      "provider": "github",
-      "owner": "carlosaid",
-      "repo": "electron-project"
-    },
     "dmg": {
       "contents": [
         {
@@ -42,10 +42,6 @@
       "target": "NSIS"
     }
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/carlosaid/electron-project.git"
-  },
   "devDependencies": {
     "electron": "^32.0.1",
     "electron-builder": "^24.13.3",
@@ -53,11 +49,11 @@
   },
   "dependencies": {
     "electron-store": "^10.0.0",
+    "electron-updater": "^6.3.9",
     "keytar": "^7.9.0",
     "node-cron": "^3.0.3",
     "node-notifier": "^10.0.1",
     "screenshot-desktop": "^1.15.1",
-    "update-electron-app": "^3.1.0",
     "xmlrpc": "^1.3.2"
   }
 }

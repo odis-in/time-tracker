@@ -1,4 +1,5 @@
 const { app, Tray, Menu, ipcMain, BrowserWindow } = require('electron');
+const { autoUpdater, AppUpdater } = require("electron-updater");
 const { authenticateUser } = require('./src/odoo/authenticateUser');
 const { getClients } = require('./src/odoo/getClients');
 const { presenceNotification } = require('./src/utils/presenceNotification');
@@ -11,12 +12,13 @@ const { getIpAndLocation } = require('./src/utils/getIPAddress');
 const { checkDataAndSend } = require('./src/utils/checkDataAndSend');
 const { calculateTimeDifference, convertDate } = require('./src/utils/calculateTimeDifference');
 const { sendActivityUserSummary } = require('./src/utils/dataManager');
-require('update-electron-app')();
+const nodeNotifier = require('node-notifier');
 async function getStore() {
   const { default: Store } = await import('electron-store');
   return new Store();
 }
-
+autoUpdater.autoDownload = false;
+autoUpdater.autoInstallOnAppQuit = true;
 let tray;
 let presenceJob = null;
 let screenshotJob = null;
@@ -148,7 +150,7 @@ if (!gotTheLock) {
   app.whenReady().then(() => {
     verifyCredentialsOnStart();
     createTray();
-    
+    autoUpdater.checkForUpdates();
     ipcMain.handle('login', async (event, username, password, url, timeNotification, db) => {
       try {
         const uid = await authenticateUser(username, password, url, db);
@@ -163,6 +165,34 @@ if (!gotTheLock) {
         throw error;
       }
     });
+  });
+
+  autoUpdater.on("update-available", (info) => {
+    console.log(`Update available. Current version ${app.getVersion()}`);
+    nodeNotifier.notify({
+      title: 'Actualización disponible',
+      message: 'Hay una actualización disponible para la aplicación',
+      icon: path.join(__dirname, './src/assets/img/tele-trabajo.png'),
+      sound: true,
+      wait: true
+    });
+    autoUpdater.downloadUpdate();  // Descarga la actualización
+  });
+  
+  autoUpdater.on("update-not-available", (info) => {
+    console.log(`No update available. Current version ${app.getVersion()}`);
+  });
+  
+  autoUpdater.on("update-downloaded", (info) => {
+    console.log(`Update downloaded. Current version ${app.getVersion()}`);
+    nodeNotifier.notify({
+      title: 'Actualización descargada',
+      message: 'La actualización ha sido descargada y está lista para ser instalada',
+      icon: path.join(__dirname, './src/assets/img/tele-trabajo.png'),
+      sound: true,
+      wait: true
+    });
+    autoUpdater.quitAndInstall();  // Instalar la actualización descargada
   });
 
   ipcMain.on('close-main-window', () => {
