@@ -361,3 +361,12 @@ tr:nth-child(even) {
   opacity: 0.5;
   pointer-events: none; 
 }
+
+.modal-buttons{
+  display: flex;
+}
+
+.modal-buttons button{
+  margin: 0px 5px;
+  height: 40px;
+} 

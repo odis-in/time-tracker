@@ -4,6 +4,12 @@ const { getClients } = require("../odoo/getClients");
 const {captureScreen } = require('../utils/captureScreen');
 const { getIpAndLocation } = require('../utils/getIPAddress');
 
+ipcRenderer.on('error-occurred', (event, error) => {
+	
+	console.error('Error recibido desde el proceso principal:', error.message);
+	console.error('Stack Trace:', error.stack);
+  });
+
 function applyHourValidation(input) {
 	input.addEventListener('input', (event) => {
 		let value = event.target.value;

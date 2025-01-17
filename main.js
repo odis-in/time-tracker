@@ -154,6 +154,8 @@ if (!gotTheLock) {
         await saveCredentials(username, password, url, timeNotification, uid.toString(), db);
 
         const clients = await getClients();
+        const store = await getStore();
+        store.set('clients', clients);
         return uid;
       } catch (error) {
         console.error('Error al autenticar con Odoo:', error);
@@ -209,43 +211,26 @@ if (!gotTheLock) {
   });
 
   ipcMain.on('send-data', async (event, client, description) => {
-    const store = await getStore();
-    const modalWindows = getModalWindow();
-    console.log('Datos recibidos del formulario:', { client, description });
-    activityData.partner_id = client;
-    activityData.description = description;
-
-    const client_data = store.get('clients').find(rec => rec.id == client);
-    if (client_data) {
-      console.log('Cliente encontrado:', client_data);
-    } else {
-      console.log('Cliente no encontrado');
-    }
-    const work_day = store.get('work-day') || [];
-
-    lastClient = null;
-
-    if (work_day.length === 0) {
-      const data_work_day = {
-        client: client_data,
-        date: new Date().toLocaleDateString('en-US'),
-        startWork: convertDate(activityData.presence.timestamp.split(' ')[1]),
-        endWork: '00:00',
-        timeWorked: '00:00',
-      };
-
-      work_day.push(data_work_day);
-      store.set('work-day', work_day);
-      console.log('Primer cliente agregado:', store.get('work-day'));
-      lastClient = client_data.name;
-    } else {
-
-      const lastItem = work_day[work_day.length - 1];
-
-      if (lastItem.client.name !== client_data.name) {
-
-        lastItem.endWork = convertDate(activityData.presence.timestamp.split(' ')[1]);
-        lastItem.timeWorked = calculateTimeDifference(lastItem.startWork, lastItem.endWork);
+    try {
+      const store = await getStore();
+      const modalWindows = getModalWindow();
+      console.log('Datos recibidos del formulario:', { client, description });
+  
+      // Asignación de datos a `activityData`
+      activityData.partner_id = client;
+      activityData.description = description;
+  
+      const client_data = store.get('clients').find(rec => rec.id == client);
+      if (client_data) {
+        console.log('Cliente encontrado:', client_data);
+      } else {
+        console.log('Cliente no encontrado');
+      }
+  
+      const work_day = store.get('work-day') || [];
+      let lastClient = null;
+  
+      if (work_day.length === 0) {
         const data_work_day = {
           client: client_data,
           date: new Date().toLocaleDateString('en-US'),
@@ -253,27 +238,60 @@ if (!gotTheLock) {
           endWork: '00:00',
           timeWorked: '00:00',
         };
+  
         work_day.push(data_work_day);
         store.set('work-day', work_day);
+        console.log('Primer cliente agregado:', store.get('work-day'));
+        lastClient = client_data.name;
       } else {
-        lastItem.endWork = convertDate(activityData.presence.timestamp.split(' ')[1]);
-        lastItem.timeWorked = calculateTimeDifference(lastItem.startWork, lastItem.endWork);
-        store.set('work-day', work_day);
+        const lastItem = work_day[work_day.length - 1];
+  
+        if (lastItem.client.name !== client_data.name) {
+          lastItem.endWork = convertDate(activityData.presence.timestamp.split(' ')[1]);
+          lastItem.timeWorked = calculateTimeDifference(lastItem.startWork, lastItem.endWork);
+          const data_work_day = {
+            client: client_data,
+            date: new Date().toLocaleDateString('en-US'),
+            startWork: convertDate(activityData.presence.timestamp.split(' ')[1]),
+            endWork: '00:00',
+            timeWorked: '00:00',
+          };
+          work_day.push(data_work_day);
+          store.set('work-day', work_day);
+        } else {
+          lastItem.endWork = convertDate(activityData.presence.timestamp.split(' ')[1]);
+          lastItem.timeWorked = calculateTimeDifference(lastItem.startWork, lastItem.endWork);
+          store.set('work-day', work_day);
+        }
       }
+  
+      // Enviar datos actualizados a las ventanas del navegador
+      BrowserWindow.getAllWindows().forEach(win => {
+        win.webContents.send('work-day-updated', work_day);
+      });
+  
+      
+      modalWindows.close();
+  
+      // const odoo_id = await checkDataAndSend(activityData);
+      checkDataAndSend(activityData);
+  
+      
+      activityData.partner_id = null;
+      activityData.description = null;
+    } catch (error) {
+      console.error('Error procesando los datos:', error);
+  
+      
+      BrowserWindow.getAllWindows().forEach(win => {
+        win.webContents.send('error-occurred', {
+          message: error.message,
+          stack: error.stack,
+        });
+      });
     }
-
-    BrowserWindow.getAllWindows().forEach(win => {
-      win.webContents.send('work-day-updated', work_day);
-    });
-    modalWindows.close()
-    // const odoo_id = await checkDataAndSend(activityData);
-    checkDataAndSend(activityData); 
-    
-    
-    activityData.partner_id = null;
-    activityData.description = null;
-    
   });
+  
 
 
   ipcMain.handle('get-work-day', async (event) => {
