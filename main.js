@@ -11,6 +11,7 @@ const { getIpAndLocation } = require('./src/utils/getIPAddress');
 const { checkDataAndSend } = require('./src/utils/checkDataAndSend');
 const { calculateTimeDifference, convertDate } = require('./src/utils/calculateTimeDifference');
 const { sendActivityUserSummary } = require('./src/utils/dataManager');
+require('update-electron-app')();
 async function getStore() {
   const { default: Store } = await import('electron-store');
   return new Store();
