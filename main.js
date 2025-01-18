@@ -127,7 +127,7 @@ if (!gotTheLock) {
         const clients = await getClients();
         const store = await getStore();
         store.set('clients', clients);
-        setupCronJobs();
+        // setupCronJobs();
       } else {
         createLoginWindow();
         session = false;
@@ -176,11 +176,8 @@ if (!gotTheLock) {
       sound: true,
       wait: true
     });
-    autoUpdater.downloadUpdate();  // Descarga la actualización
-  });
-  
-  autoUpdater.on("update-not-available", (info) => {
-    console.log(`No update available. Current version ${app.getVersion()}`);
+    autoUpdater.downloadUpdate(); 
+    tray.setToolTip('comenzando la descarga'); // Descarga la actualización
   });
   
   autoUpdater.on("update-downloaded", (info) => {
@@ -192,7 +189,26 @@ if (!gotTheLock) {
       sound: true,
       wait: true
     });
-    autoUpdater.quitAndInstall();  // Instalar la actualización descargada
+  });
+
+  autoUpdater.on('download-progress', (progressObj) => {
+    const { percent } = progressObj;
+  
+    tray.setToolTip(`Descargando actualización... ${percent.toFixed(2)}%`);
+ 
+  });
+
+  autoUpdater.on("error", (info) => {
+    console.log(`Error in auto-updater. ${info}`);
+    nodeNotifier.notify({
+      title: 'Error en la actualización',
+      message: `Error durante la actualización: ${info}`,
+      icon: path.join(__dirname, './src/assets/img/tele-trabajo.png'),
+      sound: true,
+      wait: true
+    });
+
+
   });
 
   ipcMain.on('close-main-window', () => {
@@ -344,7 +360,7 @@ if (!gotTheLock) {
   ipcMain.on('login-success', () => {
     createMainWindow();
     session = true;
-    setupCronJobs();
+    // setupCronJobs();
 
     const loginWindow = getLoginWindow();
     if (loginWindow) {
