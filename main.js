@@ -127,7 +127,7 @@ if (!gotTheLock) {
         const clients = await getClients();
         const store = await getStore();
         store.set('clients', clients);
-        // setupCronJobs();
+        setupCronJobs();
       } else {
         createLoginWindow();
         session = false;
@@ -360,7 +360,7 @@ if (!gotTheLock) {
   ipcMain.on('login-success', () => {
     createMainWindow();
     session = true;
-    // setupCronJobs();
+    setupCronJobs();
 
     const loginWindow = getLoginWindow();
     if (loginWindow) {

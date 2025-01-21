@@ -38,9 +38,7 @@ async function handleData(activityData) {
         try {
             await sendData('user.activity', activityData);
             console.log('Datos enviados al servidor.');
-
-            await sendLocalData(); // Enviar datos almacenados localmente si hay conexión
-            
+            await sendLocalData(); 
         } catch (error) {
             console.error('Error al enviar datos al servidor, guardando en local:', error);
             saveDataLocally(activityData);

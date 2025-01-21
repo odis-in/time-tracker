@@ -3,6 +3,7 @@ const { calculateTimeDifference, toCorrectISO } = require('../utils/calculateTim
 const { getClients } = require("../odoo/getClients");
 const {captureScreen } = require('../utils/captureScreen');
 const { getIpAndLocation } = require('../utils/getIPAddress');
+const { deleteData } = require('../odoo/deleteData');
 
 ipcRenderer.on('error-occurred', (event, error) => {
 	
@@ -342,7 +343,12 @@ function cancelEdit(button, originalStartTime, originalEndTime) {
 function deleteRow(button) {
 	const row = button.closest('tr');
 	const index = row.rowIndex - 1;
-
+	const dataRow = JSON.parse(localStorage.getItem('workDayData'));
+	const rowSelected = dataRow.filter((item, i) => i === index);
+	const start_time = toCorrectISO(`${rowSelected[0].date} ${rowSelected[0].startWork}`);
+	const end_time = toCorrectISO(`${rowSelected[0].date} ${rowSelected[0].endWork}`);
+	const partner_id = rowSelected[0].client.id;
+	console.log(start_time, end_time, partner_id);
 	const modal = document.getElementById('confirmModal');
 	modal.style.display = 'block';
 
@@ -350,12 +356,13 @@ function deleteRow(button) {
 	const cancelButton = document.getElementById('cancelDelete');
 
 	confirmButton.onclick = function () {
+		deleteData(start_time, end_time, partner_id);
 		const workDayData = JSON.parse(localStorage.getItem('workDayData'));
 		const updatedData = workDayData.filter((item, i) => i !== index);
 		localStorage.setItem('workDayData', JSON.stringify(updatedData));
 		ipcRenderer.send('update-work-day', updatedData);
 		renderWorkDayData();
-
+		
 		modal.style.display = 'none';
 	};
 
@@ -516,7 +523,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	}
 
 	renderWorkDayData();
-
+	// renderODOO();
 	ipcRenderer.on('work-day-updated', () => {
 		renderWorkDayData();
 		const btnSave = document.querySelector('.btn-add');
