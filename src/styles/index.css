@@ -89,9 +89,9 @@
 }
 
 .button-container {
+  width: 90%;
   position: fixed;
   bottom: 2rem;
-  right: 2rem; /* Aumenta el espacio desde el lado derecho */
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -330,7 +330,7 @@ tr:nth-child(even) {
   width: 15%;
 }
 .tb-time-work{
-  width: 15%;
+  width: 10%;
 }
 .tb-actions{
   width: 15%;

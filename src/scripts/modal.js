@@ -3,7 +3,7 @@ const { ipcRenderer } = require('electron');
 
 async function showClients() {
     try {
-        const clients = await getClients();
+        const clients = await ipcRenderer.invoke('get-clients')
         console.log(clients); 
 
         const clientSelect = document.getElementById('client');

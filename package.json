@@ -4,7 +4,7 @@
   "description": "time-tracker app",
   "main": "main.js",
   "scripts": {
-    "start": "nodemon --exec electron .",
+    "start": "electron .",
     "pack": "build --dir",
     "dist": "electron-builder"
   },
@@ -48,7 +48,6 @@
   "devDependencies": {
     "electron": "^32.0.1",
     "electron-builder": "^24.13.3",
-    "nodemon": "^3.1.9",
     "request-promise": "*"
   },
   "dependencies": {

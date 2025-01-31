@@ -65,10 +65,10 @@ function toggleAmPm(button) {
 
 async function showClients() {
 	try {
-		const clients = await getClients();
+		// const clients = await getClients();
+		const clients = await ipcRenderer.invoke('get-clients')
 		console.log(clients);
-
-
+		
 		const clientSelect = document.getElementById('client');
 
 		if (!clients || clients.length === 0) {
@@ -122,7 +122,7 @@ function editRow(button) {
 
 	const actionCell = row.querySelector('td:last-child');
 	actionCell.innerHTML = `
-	  <td><button class="save-btn" onclick="saveRow(this, '${originalStartTime}', '${originalEndTime}')">${saveIcon}</button><button class="cancel-btn" onclick="cancelEdit(this,'${originalStartTime}', '${originalEndTime}')">${cancelIcon}</button></td>
+	  <td style="display:flex; gap:5px;"><button class="save-btn" onclick="saveRow(this, '${originalStartTime}', '${originalEndTime}')">${saveIcon}</button><button class="cancel-btn" onclick="cancelEdit(this,'${originalStartTime}', '${originalEndTime}')">${cancelIcon}</button></td>
 	  
 	`;
 	const start_container = document.getElementById('start-container');
@@ -172,17 +172,17 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 			document.getElementById('message-error').textContent = '';
 
 			const workDayData = JSON.parse(localStorage.getItem('workDayData'));
-			// console.log(workDayData[index - 1].endWork);
+			// console.log(workDayData[index - 1]?.endWork);
 			// console.log('startInput', startInput)
-			// console.log('ennd work', workDayData[index - 1].endWork)
-			// console.log(startInput ,'<', workDayData[index - 1].endWork);
-			// console.log(startInput  < workDayData[index - 1].endWork);
-			if (index > 0) {
-				if (startInput < workDayData[index - 1].endWork || endInput > workDayData[index + 1]?.endWork) {
-					document.getElementById('message-error').textContent = 'TRASLAPE DE HORAS';
-					return;
-				}
+			// console.log('ennd work', workDayData[index - 1]?.endWork)
+			// console.log(startInput ,'<', workDayData[index - 1]?.endWork);
+			// console.log(startInput  < workDayData[index - 1]?.endWork);
+			
+			if (startInput < workDayData[index - 1]?.endWork || endInput > workDayData[index + 1]?.startWork) {
+				document.getElementById('message-error').textContent = 'TRASLAPE DE HORAS';
+				return;
 			}
+		
 
 			const updatedData = workDayData.map(item => {
 				if (index === workDayData.indexOf(item)) {
@@ -202,8 +202,7 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 			row.querySelector('.start-time').textContent = startInput.value;
 			row.querySelector('.end-time').textContent = endInput.value;
 			ipcRenderer.send('update-work-day', updatedData);
-
-			row.querySelector('td:last-child').innerHTML = `<button class="edit-btn" onclick="editRow(this)">${editIcon}</button>`;
+			
 		}
 	} else {
 		btnSave.disabled = false;
@@ -227,7 +226,6 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 		
 		const workDayData = JSON.parse(localStorage.getItem('workDayData'));
 
-		
 		if (startInput >= endInput) {
 			document.getElementById('message-error').textContent = 'LA HORA DE INCIO NO PUEDE SER MAYOR O IGUAL A LA HORA DE FIN';
 			return;
@@ -328,7 +326,7 @@ function cancelEdit(button, originalStartTime, originalEndTime) {
 	row.querySelector('.start-time').textContent = originalStartTime;
 	row.querySelector('.end-time').textContent = originalEndTime;
 
-	row.querySelector('td:last-child').innerHTML = `<td><button class="edit-btn" onclick="editRow(this)">${editIcon}</button><button class="cancel-btn" onclick="deleteRow(this)">${deleteIcon}</button></td>`; }
+	row.querySelector('td:last-child').innerHTML = `<td style="display:flex; gap:5px;"><button class="edit-btn" onclick="editRow(this)">${editIcon}</button><button class="cancel-btn" onclick="deleteRow(this)">${deleteIcon}</button></td>`; }
 	else {
 		const row = button.closest('tr');
 		row.remove();
@@ -403,7 +401,7 @@ function addRow(button) {
 			</div>
 		</td>
 		<td>00:00</td>
-		<td>
+		<td style="display:flex; gap:5px;">
 			<button class="save-btn" onclick="saveRow(this)">${saveIcon}</button>
 			<button class="cancel-btn" onclick="cancelEdit(this)">${cancelIcon}</button>
 		</td>`;
@@ -484,7 +482,7 @@ async function renderWorkDayData() {
     return itemDate == todayFormatted;
 	});
 
-	localStorage.setItem('workDayData', JSON.stringify(filteredData));
+	localStorage.setItem('workDayData', JSON.stringify(workDayData));
 
 	const tbody = document.getElementById('work-day-tbody');
 	tbody.innerHTML = '';
@@ -501,7 +499,7 @@ async function renderWorkDayData() {
 		<td class="start-time">${convertTo12HourFormat(item.startWork)}</td>
 		<td class="end-time">${convertTo12HourFormat(item.endWork)}</td>
 		<td class="time-work">${item.timeWorked}</td>
-		<td>
+		<td style="display:flex; gap:5px;">
 		  <button class="edit-btn" onclick="editRow(this)">${editIcon}</button>
 		  <button class="cancel-btn" onclick="deleteRow(this)">${deleteIcon}</button>
 		</td>

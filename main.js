@@ -13,6 +13,7 @@ const { checkDataAndSend } = require('./src/utils/checkDataAndSend');
 const { calculateTimeDifference, convertDate } = require('./src/utils/calculateTimeDifference');
 const { sendActivityUserSummary } = require('./src/utils/dataManager');
 const nodeNotifier = require('node-notifier');
+const { checkServerConnection } = require('./src/utils/checkConnection');
 async function getStore() {
   const { default: Store } = await import('electron-store');
   return new Store();
@@ -63,7 +64,6 @@ if (!gotTheLock) {
 
   function createTray() {
     tray = new Tray(path.join(__dirname, './src/assets/img/tele-trabajo.png'));
-
     const contextMenu = Menu.buildFromTemplate([
       {
         label: 'Mostrar',
@@ -118,15 +118,18 @@ if (!gotTheLock) {
 
   async function verifyCredentialsOnStart() {
     try {
-      const { username, password, url, db } = await getCredentials(['username', 'password', 'url', 'db']);
-      console.log(username, password, url, db);
+      const { username, password, url, db , uid} = await getCredentials(['username', 'password', 'url', 'db', 'uid']);
+      console.log(username, password, url, db, uid);
       if (username && password) {
         createMainWindow();
         session = true;
-        console.log('Credenciales encontradas:', username, password, url, db, session);
-        const clients = await getClients();
-        const store = await getStore();
-        store.set('clients', clients);
+        console.log('Credenciales encontradas:', username, password, url, db, session, uid);
+        const online = await checkServerConnection();
+        if (online) {
+          const clients = await getClients();
+          const store = await getStore();
+          store.set('clients', clients);
+        }
         setupCronJobs();
       } else {
         createLoginWindow();
@@ -150,16 +153,18 @@ if (!gotTheLock) {
   app.whenReady().then(() => {
     verifyCredentialsOnStart();
     createTray();
+    sendActivityUserSummary();
+    console.log('enviando resumen del dia anterior')
     autoUpdater.checkForUpdates();
     ipcMain.handle('login', async (event, username, password, url, timeNotification, db) => {
       try {
-        const uid = await authenticateUser(username, password, url, db);
-        await saveCredentials(username, password, url, timeNotification, uid.toString(), db);
-
+        const { setCookieHeader, uid } = await authenticateUser(username, password, url, db);
+        await saveCredentials(username, password, url, timeNotification, uid.toString(), setCookieHeader.toString(), db);
         const clients = await getClients();
         const store = await getStore();
         store.set('clients', clients);
         return uid;
+        
       } catch (error) {
         console.error('Error al autenticar con Odoo:', error);
         throw error;
@@ -345,6 +350,12 @@ if (!gotTheLock) {
     const store = await getStore();
     const work_day = store.get('work-day') || [];
     return work_day;
+  });
+
+  ipcMain.handle('get-clients', async (event) => {
+    const store = await getStore();
+    const clients = store.get('clients') || [];
+    return clients;
   });
 
   ipcMain.on('delete_data', async () => {

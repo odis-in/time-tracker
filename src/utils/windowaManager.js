@@ -77,12 +77,12 @@ function createMainWindow() {
   //   mainWindow.hide();
   // });
 
-  mainWindow.on('close', (event) => {
-    if (!app.isQuiting) {
-      event.preventDefault();
-      mainWindow.hide();
-    }
-  });
+  // mainWindow.on('close', (event) => {
+  //   if (!app.isQuiting) {
+  //     event.preventDefault();
+  //     mainWindow.hide();
+  //   }
+  // });
 
   mainWindow.on('closed', () => {
     mainWindow = null;
