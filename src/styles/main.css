@@ -117,3 +117,8 @@ button:hover {
   font-size: 14px;
   text-align: center;
 }
+
+.element {
+  user-select: none;  
+  pointer-events: none;  
+}
