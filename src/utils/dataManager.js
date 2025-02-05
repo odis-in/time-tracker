@@ -1,4 +1,4 @@
-const { sendData, sendDataSummary } = require('../odoo/sendData');
+const { sendData, sendDataSummary, updateData } = require('../odoo/sendData');
 const { toCorrectISO } = require('./calculateTimeDifference');
 const { checkServerConnection } = require('./checkConnection');
 
@@ -66,41 +66,53 @@ async function getStoredData() {
 }
 
 async function sendActivityUserSummary() {
-    
     const store = await getStore();
     const work_day = store.get('work-day') || [];
+    const data_sent = store.get('data-sent') || []; 
     const today = new Date();
-	const todayFormatted = today.toLocaleDateString('en-US');
+    const todayFormatted = today.toLocaleDateString('en-US');
+
+    const lastWorkDay = work_day[work_day.length - 1];
+
+    const activityData = [{
+        partner_id: lastWorkDay.client.id,
+        start_time: toCorrectISO(`${lastWorkDay.date} ${lastWorkDay.startWork}`),
+        end_time: toCorrectISO(`${lastWorkDay.date} ${lastWorkDay.endWork}`),
+        total_hours: lastWorkDay.timeWorked
+    }];
+
     
-    const activityData = work_day
-        .filter((data) => {return data.date < todayFormatted})
-        .map((data) => {
-            return {
-                partner_id: data.client.id,
-                start_time: toCorrectISO(`${data.date} ${data.startWork}`),
-                end_time: toCorrectISO(`${data.date} ${data.endWork}`),
-                total_hours: data.timeWorked
-            }
-        });
+    // const alreadySent = data_sent.some(sent =>
+    //     sent.partner_id === activityData[0].partner_id &&
+    //     sent.start_time === activityData[0].start_time
+    // );
+    // console.log(alreadySent)
+    // if (alreadySent) {
+    //     console.log('Los datos ya fueron enviados anteriormente:', activityData);
+    //     updateData('user.activity.summary', activityData);
+    //     return;
+    // }
 
     const isConnected = await checkServerConnection();
-    const remainingData = work_day.filter((data) => {return data.date >= todayFormatted});
+    const remainingData = work_day.filter(data => data.date >= todayFormatted);
     store.set('work-day', remainingData);
+
     if (activityData.length > 0) {
         if (isConnected) {
             try {
                 await sendDataSummary('user.activity.summary', activityData);
                 console.log('Datos enviados al servidor:', activityData);
+                // store.set('data-sent', [...data_sent, ...activityData]); // Agregar los datos enviados
             } catch (error) {
                 console.log('Error al enviar datos al servidor:', error);
             }
         } else {
-            saveDataLocally(activityData, 'offLineSummaryData')
+            saveDataLocally(activityData, 'offLineSummaryData');
         }
     } else {
         console.log('No hay datos para enviar.');
     }
-
 }
+
 
 module.exports = { handleData ,sendActivityUserSummary};

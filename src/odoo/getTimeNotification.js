@@ -1,7 +1,8 @@
-async function getClients(session_id, url) {
+async function getTimeNotification( session_id, url ) {
+	
 	try {
-        
-		const response = await fetch(`${url}/web/get_partner`, {
+
+		const response = await fetch(`${url}/web/get_time_notification`, {
 			method: 'GET',
 			headers: {
 				'Content-Type': 'application/json',
@@ -29,5 +30,5 @@ async function getClients(session_id, url) {
 }
 
 module.exports = {
-    getClients,
+    getTimeNotification,
 };

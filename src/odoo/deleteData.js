@@ -9,7 +9,7 @@ async function deleteData(start_time, end_time, partner_id) {
             throw new Error('Credenciales no encontradas. Por favor, autentique nuevamente.');
         }
 
-        const models = xmlrpc.createClient({ url: `${url}/xmlrpc/2/object` });
+        const models = xmlrpc.createSecureClient({ url: `${url}/xmlrpc/2/object` });
         console.log(end_time.split(' ')[1]);
 
         let domain;

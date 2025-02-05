@@ -1,6 +1,6 @@
 {
   "name": "time-tracker",
-  "version": "1.1.2",
+  "version": "1.0.0",
   "description": "time-tracker app",
   "main": "main.js",
   "scripts": {
@@ -40,6 +40,11 @@
     },
     "win": {
       "target": "NSIS"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "runAfterFinish": true
     },
     "directories": {
       "output": "dist"

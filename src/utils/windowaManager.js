@@ -54,7 +54,7 @@ function createMainWindow() {
   }
 
   mainWindow = new BrowserWindow({
-    width: 950,
+    width: 1040,
     height: 600,
     webPreferences: {
       // preload: path.join(__dirname, '../preload.js'),
@@ -62,6 +62,7 @@ function createMainWindow() {
       contextIsolation: false,
     },
     frame: false,
+    resizable: false,
     autoHideMenuBar: true,
     titleBarStyle: 'hidden',
     transparent: true,
@@ -70,6 +71,39 @@ function createMainWindow() {
 
   mainWindow.loadFile('./src/pages/index.html');
 
+  // let isDragging = false;
+  // let offsetX = 0;
+  // let offsetY = 0;
+
+  // mainWindow.webContents.on('did-finish-load', () => {
+  //   mainWindow.webContents.executeJavaScript(`
+  //     const dragArea = document.getElementById('drag-area');
+  //     dragArea.addEventListener('mousedown', (event) => {
+  //       window.isDragging = true;
+  //       window.offsetX = event.clientX;
+  //       window.offsetY = event.clientY;
+  //     });
+
+  //     dragArea.addEventListener('mousemove', (event) => {
+  //       if (window.isDragging) {
+  //         let dx = event.clientX - window.offsetX;
+  //         let dy = event.clientY - window.offsetY;
+  //         window.moveBy(dx, dy);
+  //         window.offsetX = event.clientX;
+  //         window.offsetY = event.clientY;
+  //       }
+  //     });
+
+  //     dragArea.addEventListener('mouseup', () => {
+  //       window.isDragging = false;
+  //     });
+
+  //     dragArea.addEventListener('mouseleave', () => {
+  //       window.isDragging = false;
+  //     });
+  //   `);
+  // });
+
   // mainWindow.webContents.openDevTools();
 
   // mainWindow.on('minimize', (event) => {
@@ -77,12 +111,12 @@ function createMainWindow() {
   //   mainWindow.hide();
   // });
 
-  // mainWindow.on('close', (event) => {
-  //   if (!app.isQuiting) {
-  //     event.preventDefault();
-  //     mainWindow.hide();
-  //   }
-  // });
+  mainWindow.on('close', (event) => {
+    if (!app.isQuiting) {
+      event.preventDefault();
+      mainWindow.hide();
+    }
+  });
 
   mainWindow.on('closed', () => {
     mainWindow = null;

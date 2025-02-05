@@ -8,18 +8,17 @@ document.getElementById('loginForm').addEventListener('submit', async (event) =>
   const password = formData.get('password');
   const url = formData.get('url');
   const db = formData.get('db');
-  const timeNotification = formData.get('time-notification');
+  // const timeNotification = formData.get('time-notification');
 
   try {
-    const uid = await ipcRenderer.invoke('login', username, password, url, timeNotification, db);
+    const uid = await ipcRenderer.invoke('login', username, password, url, db);
 
     if (uid) {
-
       localStorage.setItem('username', username);
       localStorage.setItem('password', password);
       localStorage.setItem('url',url);
       localStorage.setItem('db',db);
-      localStorage.setItem('timeNotification',timeNotification);
+      // localStorage.setItem('timeNotification',timeNotification);
 
       ipcRenderer.send('login-success');
       document.getElementById('error-message').textContent = '';

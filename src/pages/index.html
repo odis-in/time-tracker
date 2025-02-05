@@ -9,6 +9,7 @@
   </head>
   <body>
     <div class="app-container-index">
+      <!-- <div id="drag-area"></div> -->
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-4">
           <div class="avatar">
@@ -17,23 +18,21 @@
             </svg>
           </div>
           <div class="grid gap-1">
-            <div id="username" class="font-medium text-lg"></div>
-            <div class="text-muted-foreground text-sm">Rol de usuario</div>
+            <div id="username" class="font-medium text-lg element"></div>
+            <div class="text-muted-foreground text-sm element">Rol de usuario</div>
           </div>
         </div>
 
         <!-- Fecha y Hora -->
-        <div class="text-muted-foreground text-sm">
-          <script>
-            document.write(new Date().toLocaleString());
-          </script>
+        <div class="text-muted-foreground text-sm element">
+          <span id="date"></span>
         </div>
       </div>
       <div class="separator"></div>
       <!-- Nueva tabla de trabajo del día -->
       <div class="work-day-table">
         
-        <h2 class="text-lg font-medium mb-2">Lista de trabajo del día</h2>
+        <h2 class="text-lg font-medium mb-2 element">Lista de trabajo del día</h2>
         <button class="btn-add" id="btn-add" onclick="addRow(this)" value="create">Crear Nuevo</button>
         <!-- <button class="btn-add" id="btn-send">Enviar Datos</button> -->
         <div class="table-container">
@@ -43,6 +42,7 @@
                 <th class="tb-client">Cliente</th>
                 <th class="tb-start-work">Hora Inicio</th>
                 <th class="tb-end-workd"">Hora Final</th>
+                <th class="tb-description">Descripción</th>
                 <th class="tb-time-work">Tiempo</th>
                 <th class="tb-actions">Acciones</th>
               </tr>

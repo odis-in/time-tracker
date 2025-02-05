@@ -1,7 +1,8 @@
 const { app, Tray, Menu, ipcMain, BrowserWindow } = require('electron');
-const { autoUpdater, AppUpdater } = require("electron-updater");
+// const { autoUpdater, AppUpdater } = require("electron-updater");
 const { authenticateUser } = require('./src/odoo/authenticateUser');
 const { getClients } = require('./src/odoo/getClients');
+const { getTimeNotification } = require('./src/odoo/getTimeNotification');
 const { presenceNotification } = require('./src/utils/presenceNotification');
 const cron = require('node-cron');
 const path = require('path');
@@ -18,8 +19,8 @@ async function getStore() {
   const { default: Store } = await import('electron-store');
   return new Store();
 }
-autoUpdater.autoDownload = false;
-autoUpdater.autoInstallOnAppQuit = true;
+// autoUpdater.autoDownload = false;
+// autoUpdater.autoInstallOnAppQuit = true;
 let tray;
 let presenceJob = null;
 let screenshotJob = null;
@@ -118,15 +119,17 @@ if (!gotTheLock) {
 
   async function verifyCredentialsOnStart() {
     try {
-      const { username, password, url, db , uid} = await getCredentials(['username', 'password', 'url', 'db', 'uid']);
+      const { username, password, url, db , uid, session_id, timeNotification} = await getCredentials(['username', 'password', 'url', 'db', 'uid', 'session_id','timeNotification']);
       console.log(username, password, url, db, uid);
       if (username && password) {
         createMainWindow();
         session = true;
-        console.log('Credenciales encontradas:', username, password, url, db, session, uid);
+        console.log('Credenciales encontradas:', username, password, url, db, session, uid, timeNotification);
         const online = await checkServerConnection();
         if (online) {
-          const clients = await getClients();
+          const clients = await getClients(session_id, url);
+          const time_notification  = await getTimeNotification(session_id, url);
+          console.log('tm',time_notification);
           const store = await getStore();
           store.set('clients', clients);
         }
@@ -153,15 +156,21 @@ if (!gotTheLock) {
   app.whenReady().then(() => {
     verifyCredentialsOnStart();
     createTray();
-    sendActivityUserSummary();
-    console.log('enviando resumen del dia anterior')
-    autoUpdater.checkForUpdates();
-    ipcMain.handle('login', async (event, username, password, url, timeNotification, db) => {
+    
+    // autoUpdater.checkForUpdates();
+    ipcMain.handle('login', async (event, username, password, url, db) => {
       try {
+        
         const { setCookieHeader, uid } = await authenticateUser(username, password, url, db);
-        await saveCredentials(username, password, url, timeNotification, uid.toString(), setCookieHeader.toString(), db);
-        const clients = await getClients();
-        const store = await getStore();
+        const [clients, tm, store] = await Promise.all([
+          getClients(setCookieHeader, url),
+          getTimeNotification(setCookieHeader, url),
+          getStore()
+        ]);
+
+        await saveCredentials(username, password, url, tm.time_notification.toString() , uid.toString(), setCookieHeader.toString(), db);
+       
+        console.log('tm',tm);
         store.set('clients', clients);
         return uid;
         
@@ -172,49 +181,49 @@ if (!gotTheLock) {
     });
   });
 
-  autoUpdater.on("update-available", (info) => {
-    console.log(`Update available. Current version ${app.getVersion()}`);
-    nodeNotifier.notify({
-      title: 'Actualización disponible',
-      message: 'Hay una actualización disponible para la aplicación',
-      icon: path.join(__dirname, './src/assets/img/tele-trabajo.png'),
-      sound: true,
-      wait: true
-    });
-    autoUpdater.downloadUpdate(); 
-    tray.setToolTip('comenzando la descarga'); // Descarga la actualización
-  });
+  // autoUpdater.on("update-available", (info) => {
+  //   console.log(`Update available. Current version ${app.getVersion()}`);
+  //   nodeNotifier.notify({
+  //     title: 'Actualización disponible',
+  //     message: 'Hay una actualización disponible para la aplicación',
+  //     icon: path.join(__dirname, './src/assets/img/tele-trabajo.png'),
+  //     sound: true,
+  //     wait: true
+  //   });
+  //   autoUpdater.downloadUpdate(); 
+  //   tray.setToolTip('comenzando la descarga'); // Descarga la actualización
+  // });
   
-  autoUpdater.on("update-downloaded", (info) => {
-    console.log(`Update downloaded. Current version ${app.getVersion()}`);
-    nodeNotifier.notify({
-      title: 'Actualización descargada',
-      message: 'La actualización ha sido descargada y está lista para ser instalada',
-      icon: path.join(__dirname, './src/assets/img/tele-trabajo.png'),
-      sound: true,
-      wait: true
-    });
-  });
+  // autoUpdater.on("update-downloaded", (info) => {
+  //   console.log(`Update downloaded. Current version ${app.getVersion()}`);
+  //   nodeNotifier.notify({
+  //     title: 'Actualización descargada',
+  //     message: 'La actualización ha sido descargada y está lista para ser instalada',
+  //     icon: path.join(__dirname, './src/assets/img/tele-trabajo.png'),
+  //     sound: true,
+  //     wait: true
+  //   });
+  // });
 
-  autoUpdater.on('download-progress', (progressObj) => {
-    const { percent } = progressObj;
+  // autoUpdater.on('download-progress', (progressObj) => {
+  //   const { percent } = progressObj;
   
-    tray.setToolTip(`Descargando actualización... ${percent.toFixed(2)}%`);
+  //   tray.setToolTip(`Descargando actualización... ${percent.toFixed(2)}%`);
  
-  });
+  // });
 
-  autoUpdater.on("error", (info) => {
-    console.log(`Error in auto-updater. ${info}`);
-    nodeNotifier.notify({
-      title: 'Error en la actualización',
-      message: `Error durante la actualización: ${info}`,
-      icon: path.join(__dirname, './src/assets/img/tele-trabajo.png'),
-      sound: true,
-      wait: true
-    });
+  // autoUpdater.on("error", (info) => {
+  //   console.log(`Error in auto-updater. ${info}`);
+  //   nodeNotifier.notify({
+  //     title: 'Error en la actualización',
+  //     message: `Error durante la actualización: ${info}`,
+  //     icon: path.join(__dirname, './src/assets/img/tele-trabajo.png'),
+  //     sound: true,
+  //     wait: true
+  //   });
 
 
-  });
+  // });
 
   ipcMain.on('close-main-window', () => {
     const mainWindow = getMainWindow();
@@ -257,8 +266,8 @@ if (!gotTheLock) {
   });
 
   ipcMain.on('send-manual-data', async (event, manualData) => {
-    
     checkDataAndSend(manualData);
+    sendActivityUserSummary();
     
   });
 
@@ -289,6 +298,7 @@ if (!gotTheLock) {
           startWork: convertDate(activityData.presence.timestamp.split(' ')[1]),
           endWork: '00:00',
           timeWorked: '00:00',
+          description: description,
         };
   
         work_day.push(data_work_day);
@@ -307,12 +317,14 @@ if (!gotTheLock) {
             startWork: convertDate(activityData.presence.timestamp.split(' ')[1]),
             endWork: '00:00',
             timeWorked: '00:00',
+            description: description,
           };
           work_day.push(data_work_day);
           store.set('work-day', work_day);
         } else {
           lastItem.endWork = convertDate(activityData.presence.timestamp.split(' ')[1]);
           lastItem.timeWorked = calculateTimeDifference(lastItem.startWork, lastItem.endWork);
+          lastItem.description = description;
           store.set('work-day', work_day);
         }
       }
@@ -327,7 +339,7 @@ if (!gotTheLock) {
   
       // const odoo_id = await checkDataAndSend(activityData);
       checkDataAndSend(activityData);
-  
+      sendActivityUserSummary();
       
       activityData.partner_id = null;
       activityData.description = null;
@@ -384,7 +396,10 @@ if (!gotTheLock) {
       app.quit();
     }
   });
-
+  app.setLoginItemSettings({
+    openAtLogin: true,
+    openAsHidden: false,
+  })
   app.on('activate', () => {
     const mainWindow = getMainWindow();
     const loginWindow = getLoginWindow();

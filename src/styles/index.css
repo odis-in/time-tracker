@@ -326,6 +326,9 @@ tr:nth-child(even) {
 .tb-start-work{
   width: 15%;
 }
+.tb-description{
+  width: 10%;
+}
 .tb-end-workd{
   width: 15%;
 }
@@ -333,7 +336,7 @@ tr:nth-child(even) {
   width: 10%;
 }
 .tb-actions{
-  width: 15%;
+  width: 10%;
 }
 
 .btn-add{
@@ -370,3 +373,17 @@ tr:nth-child(even) {
   margin: 0px 5px;
   height: 40px;
 } 
+
+
+#drag-area {
+  position: absolute;
+  top: 0;
+  height: 30px;
+  width: 100%;
+  background-color: #0056b3;
+}
+
+.element {
+  user-select: none;  
+  pointer-events: none;  
+}

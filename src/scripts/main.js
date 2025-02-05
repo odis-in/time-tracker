@@ -1,9 +1,9 @@
 const { ipcRenderer } = require('electron');
 const { calculateTimeDifference, toCorrectISO } = require('../utils/calculateTimeDifference');
-const { getClients } = require("../odoo/getClients");
 const {captureScreen } = require('../utils/captureScreen');
 const { getIpAndLocation } = require('../utils/getIPAddress');
 const { deleteData } = require('../odoo/deleteData');
+const { updateData } = require('../odoo/sendData');
 
 ipcRenderer.on('error-occurred', (event, error) => {
 	
@@ -21,6 +21,10 @@ function applyHourValidation(input) {
 	
 		if (value.length > 2 && value.indexOf(':') === -1) {
 			value = value.slice(0, 2) + ':' + value.slice(2);
+		}
+
+		if (value.length > 5) {
+			value = value.slice(0, 5);
 		}
 
 		
@@ -183,25 +187,40 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 				return;
 			}
 		
-
+			const updateActivityData = [{
+				partner_id: null,
+				start_time: null,
+				end_time:null,
+				total_hours: null
+			}];
 			const updatedData = workDayData.map(item => {
 				if (index === workDayData.indexOf(item)) {
+					console.log(item);	
+					updateActivityData[0].partner_id = item.client.id;
+					updateActivityData[0].start_time = toCorrectISO(`${item.date} ${startInput}`);
+					updateActivityData[0].end_time = toCorrectISO(`${item.date} ${endInput}`);
+					updateActivityData[0].total_hours = calculateTimeDifference(startInput, endInput);	
 					return {
 						...item,
 						startWork: startInput,
 						endWork: endInput,
 						timeWorked: calculateTimeDifference(startInput, endInput)
 					};
+					
 				}
 			
 				
 				row.querySelector('.time-work').textContent = calculateTimeDifference(startInput, endInput);
 				return item;
 			});
+
+			console.log(updateActivityData);
 			localStorage.setItem('workDayData', JSON.stringify(updatedData));
 			row.querySelector('.start-time').textContent = startInput.value;
 			row.querySelector('.end-time').textContent = endInput.value;
 			ipcRenderer.send('update-work-day', updatedData);
+			updateData('user.activity.summary', updateActivityData)
+			
 			
 		}
 	} else {
@@ -221,8 +240,8 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 		}
 		const startInput = convertTo24HourFormat(document.querySelector('.start-time input').value + ' ' + document.querySelector('.start-time .time-mode').textContent);
 		const endInput = convertTo24HourFormat(document.querySelector('.end-time input').value + ' ' + document.querySelector('.end-time .time-mode').textContent);
-
-		console.log(startInput, endInput);
+		const description = document.querySelector('.description input').value;
+		console.log(startInput, endInput, description);
 		
 		const workDayData = JSON.parse(localStorage.getItem('workDayData'));
 
@@ -249,6 +268,7 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 			date: new Date().toLocaleDateString('en-US'),
 			startWork: startInput,
 			endWork: endInput,
+			description: description,
 			timeWorked: calculateTimeDifference(startInput, endInput)
 		}
 	//		'2025-01-14 16:52:03',
@@ -306,7 +326,8 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 		await captureScreen(activityData);
 		activityData.partner_id = newRecord.client.id;
 		activityData.presence = { timestamp: toCorrectISO(`${newRecord.date} ${newRecord.startWork}`), status: 'active'};
-
+		activityData.description = description;
+		
 		ipcRenderer.send('send-manual-data', activityData);
 	}
 }
@@ -400,6 +421,9 @@ function addRow(button) {
 				<button class="time-mode" onclick="toggleAmPm(this)">AM</button>
 			</div>
 		</td>
+		<td class="description">
+			<input type="text" placeholder="Descripción">
+		</td>
 		<td>00:00</td>
 		<td style="display:flex; gap:5px;">
 			<button class="save-btn" onclick="saveRow(this)">${saveIcon}</button>
@@ -482,7 +506,7 @@ async function renderWorkDayData() {
     return itemDate == todayFormatted;
 	});
 
-	localStorage.setItem('workDayData', JSON.stringify(workDayData));
+	localStorage.setItem('workDayData', JSON.stringify(filteredData));
 
 	const tbody = document.getElementById('work-day-tbody');
 	tbody.innerHTML = '';
@@ -498,6 +522,7 @@ async function renderWorkDayData() {
 		<td>${item.client.name}</td>
 		<td class="start-time">${convertTo12HourFormat(item.startWork)}</td>
 		<td class="end-time">${convertTo12HourFormat(item.endWork)}</td>
+		<td class="description">${item.description}</td>
 		<td class="time-work">${item.timeWorked}</td>
 		<td style="display:flex; gap:5px;">
 		  <button class="edit-btn" onclick="editRow(this)">${editIcon}</button>
@@ -518,6 +543,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	if (usernameDiv) {
 		usernameDiv.textContent = localStorage.getItem('username')
+		window.addEventListener('storage', (event) => {
+			if (event.key === 'username') {
+				const username = localStorage.getItem('username');
+				usernameDiv.textContent = username;
+			}
+		});
 	}
 
 	renderWorkDayData();
@@ -545,3 +576,14 @@ document.getElementById('logout').addEventListener('click', () => {
 // 	ipcRenderer.send('delete_data');
 // 	localStorage.removeItem('workDayData');
 // });
+
+function updateTime() {
+	const currentTime = new Date().toLocaleString('en-US', { 
+		year: 'numeric', month: '2-digit', day: '2-digit',
+		hour:'2-digit', minute:'2-digit'
+	}); 
+	document.getElementById('date').textContent = currentTime; 
+  }
+  
+  setInterval(updateTime, 1000);
+updateTime();
