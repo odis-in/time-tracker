@@ -11,6 +11,10 @@ ipcRenderer.on('error-occurred', (event, error) => {
 	console.error('Stack Trace:', error.stack);
   });
 
+ipcRenderer.on('info-send', (event, message) => {
+	console.info(message);
+});
+
 function applyHourValidation(input) {
 	input.addEventListener('input', (event) => {
 		let value = event.target.value;
@@ -71,7 +75,7 @@ async function showClients() {
 	try {
 		// const clients = await getClients();
 		const clients = await ipcRenderer.invoke('get-clients')
-		console.log(clients);
+		
 		
 		const clientSelect = document.getElementById('client');
 
@@ -101,8 +105,9 @@ async function showClients() {
 	}
 }
 
-function editRow(button) {
-	
+async function editRow(button) {
+	const workDayData = await ipcRenderer.invoke('get-work-day');
+	localStorage.setItem('workDayData', JSON.stringify(workDayData));	
 	const row = button.closest('tr');
 
 	// Aplicamos la validación a todos los inputs existentes al cargar la página
@@ -163,7 +168,7 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 		const startInput = convertTo24HourFormat(`${document.querySelector('.start-time input').value.trim()} ${document.querySelector('.start-time .time-mode').textContent.trim()}`);
 		const endInput = convertTo24HourFormat(`${document.querySelector('.end-time input').value.trim()} ${document.querySelector('.end-time .time-mode').textContent.trim()}`);
 
-		console.log(startInput, endInput);
+		
 		const index = row.rowIndex - 1;
 		if ( startInput > now || endInput > now) {
 			document.getElementById('message-error').textContent = 'NO SE PUEDE INGRESAR UNA HORA MAYOR A LA ACTUAL';
@@ -176,14 +181,29 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 			document.getElementById('message-error').textContent = '';
 
 			const workDayData = JSON.parse(localStorage.getItem('workDayData'));
-			// console.log(workDayData[index - 1]?.endWork);
-			// console.log('startInput', startInput)
-			// console.log('ennd work', workDayData[index - 1]?.endWork)
-			// console.log(startInput ,'<', workDayData[index - 1]?.endWork);
-			// console.log(startInput  < workDayData[index - 1]?.endWork);
+
+			const hasOverlap = workDayData.some((item, i) => {
+				if (i === index) {
+					return false; 
+				}
 			
-			if (startInput < workDayData[index - 1]?.endWork || endInput > workDayData[index + 1]?.startWork) {
-				document.getElementById('message-error').textContent = 'TRASLAPE DE HORAS';
+				let overlap = false;
+			
+				if (item.endWork === '00:00') {
+					overlap = startInput >= item.startWork;
+				} else {
+					overlap = startInput < item.endWork && endInput > item.startWork;
+				}
+			
+				if (overlap) {
+					document.getElementById('message-error').textContent = 
+						`TRASLAPE DE HORAS CON ${convertTo12HourFormat(item.startWork)} - ${convertTo12HourFormat(item.endWork)}`;
+				}
+			
+				return overlap;
+			});
+			
+			if (hasOverlap) {
 				return;
 			}
 		
@@ -191,15 +211,16 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 				partner_id: null,
 				start_time: null,
 				end_time:null,
-				total_hours: null
+				total_hours: null,
+				odoo_id: null
 			}];
 			const updatedData = workDayData.map(item => {
-				if (index === workDayData.indexOf(item)) {
-					console.log(item);	
+				if (index === workDayData.indexOf(item)) {	
 					updateActivityData[0].partner_id = item.client.id;
 					updateActivityData[0].start_time = toCorrectISO(`${item.date} ${startInput}`);
 					updateActivityData[0].end_time = toCorrectISO(`${item.date} ${endInput}`);
-					updateActivityData[0].total_hours = calculateTimeDifference(startInput, endInput);	
+					updateActivityData[0].total_hours = calculateTimeDifference(startInput, endInput);
+					updateActivityData[0].odoo_id = item.odoo_id;
 					return {
 						...item,
 						startWork: startInput,
@@ -214,7 +235,7 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 				return item;
 			});
 
-			console.log(updateActivityData);
+			
 			localStorage.setItem('workDayData', JSON.stringify(updatedData));
 			row.querySelector('.start-time').textContent = startInput.value;
 			row.querySelector('.end-time').textContent = endInput.value;
@@ -241,20 +262,28 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 		const startInput = convertTo24HourFormat(document.querySelector('.start-time input').value + ' ' + document.querySelector('.start-time .time-mode').textContent);
 		const endInput = convertTo24HourFormat(document.querySelector('.end-time input').value + ' ' + document.querySelector('.end-time .time-mode').textContent);
 		const description = document.querySelector('.description input').value;
-		console.log(startInput, endInput, description);
+		
 		
 		const workDayData = JSON.parse(localStorage.getItem('workDayData'));
-
+		console.log(startInput, workDayData[workDayData.length -1]?.endWork , endInput, workDayData[workDayData.length -1]?.startWork);
 		if (startInput >= endInput) {
 			document.getElementById('message-error').textContent = 'LA HORA DE INCIO NO PUEDE SER MAYOR O IGUAL A LA HORA DE FIN';
-			return;
-		} else if (workDayData.some (item => startInput < item.endWork && endInput > item.startWork)) {
-			document.getElementById('message-error').textContent = 'TRASLAPE DE HORAS';
 			return;
 		} else if (startInput > now || endInput	> now) {
 			document.getElementById('message-error').textContent = 'NO SE PUEDE INGRESAR UNA HORA MAYOR A LA ACTUAL';
 			return;
-		}else if (selectClientText === '') {
+		} else if (workDayData.some(item => {
+			if (item.endWork === '00:00') {
+			document.getElementById('message-error').textContent = `TRASLAPE DE HORAS CON ${convertTo12HourFormat(item.startWork)}-${convertTo12HourFormat(item.endWork)}`;
+			return startInput >= item.startWork
+			} else {
+				document.getElementById('message-error').textContent = `TRASLAPE DE HORAS CON ${convertTo12HourFormat(item.startWork)}-${convertTo12HourFormat(item.endWork)}`;
+				return startInput < item.endWork && endInput > item.startWork;
+			}
+		})) {
+			
+			return;
+		} else if (selectClientText === '') {
 			document.getElementById('message-error').textContent = 'DEBE SELECCIONAR UN CLIENTE';
 			return;
 		}else if (startInput.value == '00:00' || endInput.value == '00:00'){
@@ -263,13 +292,17 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 		} else {
 			document.getElementById('message-error').textContent = '';
 		}
+		const uid = localStorage.getItem('uid');
 		const newRecord = {
 			client: {id: selectClient.value , name: selectClientText},
 			date: new Date().toLocaleDateString('en-US'),
 			startWork: startInput,
 			endWork: endInput,
 			description: description,
-			timeWorked: calculateTimeDifference(startInput, endInput)
+			timeWorked: calculateTimeDifference(startInput, endInput),
+			userId: uid,
+			odoo_id: ' ',
+			odoo_ids: []
 		}
 	//		'2025-01-14 16:52:03',
 		// console.log(toCorrectISO(`${newRecord.date} ${newRecord.startWork}`))
@@ -359,15 +392,26 @@ function cancelEdit(button, originalStartTime, originalEndTime) {
 	tbody.classList.remove('tbody-disabled');
 }
 
-function deleteRow(button) {
+async function deleteRow(button) {
+	//sincronizar antes
+	console.time('deletedata')
+	const workDayData = await ipcRenderer.invoke('get-work-day');
+	localStorage.setItem('workDayData', JSON.stringify(workDayData));
+	//sincronzado
+	console.timeEnd('deletedata')
+	
 	const row = button.closest('tr');
 	const index = row.rowIndex - 1;
 	const dataRow = JSON.parse(localStorage.getItem('workDayData'));
 	const rowSelected = dataRow.filter((item, i) => i === index);
-	const start_time = toCorrectISO(`${rowSelected[0].date} ${rowSelected[0].startWork}`);
-	const end_time = toCorrectISO(`${rowSelected[0].date} ${rowSelected[0].endWork}`);
-	const partner_id = rowSelected[0].client.id;
-	console.log(start_time, end_time, partner_id);
+	// const start_time = toCorrectISO(`${rowSelected[0].date} ${rowSelected[0].startWork}`);
+	// const end_time = toCorrectISO(`${rowSelected[0].date} ${rowSelected[0].endWork}`);
+	// const partner_id = rowSelected[0].client.id;
+	console.log('deleteRow ->', rowSelected[0].odoo_ids);
+	const odoo_ids = rowSelected[0].odoo_ids;
+	const odoo_id = rowSelected[0].odoo_id;
+	
+	
 	const modal = document.getElementById('confirmModal');
 	modal.style.display = 'block';
 
@@ -375,7 +419,7 @@ function deleteRow(button) {
 	const cancelButton = document.getElementById('cancelDelete');
 
 	confirmButton.onclick = function () {
-		deleteData(start_time, end_time, partner_id);
+		deleteData(odoo_ids, odoo_id);
 		const workDayData = JSON.parse(localStorage.getItem('workDayData'));
 		const updatedData = workDayData.filter((item, i) => i !== index);
 		localStorage.setItem('workDayData', JSON.stringify(updatedData));
@@ -399,9 +443,9 @@ function addRow(button) {
 	// // btnSend.style.cursor = 'not-allowed';
 	
 	
-	console.log(btnSave.value);
+	
 	if (btnSave.value === 'create') {
-		console.log('Agregar');
+		// console.log('Agregar');
 		tbody = document.getElementById('work-day-tbody');
 		rowsData = tbody.getElementsByTagName('tr');;
 		const row = document.createElement('tr');
@@ -491,46 +535,130 @@ function convertTo12HourFormat(time) {
     return `${hour12.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')} ${period}`;
 }
 
+function convertTimeToMinutes(time) {
+    const [hours, minutes] = time.split(':').map(Number);
+    return hours * 60 + minutes;
+}
 
-
+function convertMinutesToTime(minutes) {
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return `${String(hours).padStart(2, '0')}:${String(remainingMinutes).padStart(2, '0')}`;
+}
 
 async function renderWorkDayData() {
-	const workDayData = await ipcRenderer.invoke('get-work-day')
-	console.log(workDayData);
-	const today = new Date();
-	const todayFormatted = today.toLocaleDateString('en-US');
-	console.log(todayFormatted)
+    const workDayData = await ipcRenderer.invoke('get-work-day');
+    
+    const today = new Date();
+    const todayFormatted = today.toLocaleDateString('en-US');
+    
 
-	const filteredData = workDayData.filter(item => {
-    const itemDate = item.date;
-    return itemDate == todayFormatted;
-	});
+    const filteredData = workDayData.filter(item => {
+        const itemDate = item.date;
+        return itemDate == todayFormatted;
+    });
 
-	localStorage.setItem('workDayData', JSON.stringify(filteredData));
+    localStorage.setItem('workDayData', JSON.stringify(filteredData));
 
-	const tbody = document.getElementById('work-day-tbody');
-	tbody.innerHTML = '';
-	if (filteredData.length === 0) {
-		const emptyRow = document.createElement('tr');
-		emptyRow.innerHTML = `<td colspan="5">No hay datos disponibles</td>`;
-		tbody.appendChild(emptyRow);
-	}
-	filteredData.forEach(item => {
-		const row = document.createElement('tr');
+    const tbody = document.getElementById('work-day-tbody');
+    const counter = document.getElementById('counter');
+    tbody.innerHTML = '';
+    if (filteredData.length === 0 ) {
+        const emptyRow = document.createElement('tr');
+        emptyRow.innerHTML = `<td colspan="5">No hay datos disponibles</td>`;
+        tbody.appendChild(emptyRow);
+    }
 
-		row.innerHTML = `
-		<td>${item.client.name}</td>
-		<td class="start-time">${convertTo12HourFormat(item.startWork)}</td>
-		<td class="end-time">${convertTo12HourFormat(item.endWork)}</td>
-		<td class="description">${item.description}</td>
-		<td class="time-work">${item.timeWorked}</td>
-		<td style="display:flex; gap:5px;">
-		  <button class="edit-btn" onclick="editRow(this)">${editIcon}</button>
-		  <button class="cancel-btn" onclick="deleteRow(this)">${deleteIcon}</button>
-		</td>
-	  `;
-		tbody.appendChild(row);
-	});
+    let totalMinutes = 0;
+	const userId = localStorage.getItem('uid');
+	
+	
+    filteredData.forEach(item => {
+        const row = document.createElement('tr');
+			
+			row.innerHTML = `
+			<td>${item.client.name}</td>
+			<td class="start-time">${convertTo12HourFormat(item.startWork)}</td>
+			<td class="end-time">${convertTo12HourFormat(item.endWork)}</td>
+			<td class="description">${item.description}</td>
+			<td class="time-work">${item.timeWorked}</td>
+			<td style="display:flex; gap:5px;">
+				<button class="edit-btn" onclick="editRow(this)">${editIcon}</button>
+				<button class="cancel-btn" onclick="deleteRow(this)">${deleteIcon}</button>
+			</td>
+			`;
+			tbody.appendChild(row);
+
+			totalMinutes += convertTimeToMinutes(item.timeWorked);
+			
+    });
+
+    counter.textContent = convertMinutesToTime(totalMinutes);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const closeButton = document.getElementById('close');
+    closeButton.addEventListener('click', () => {
+        ipcRenderer.send('close-main-window');
+    });
+
+    const usernameDiv = document.getElementById('username');
+    const profileImage = document.getElementById('profileImage');
+    if (usernameDiv) {
+        usernameDiv.textContent = localStorage.getItem('name');
+        window.addEventListener('storage', (event) => {
+            if (event.key === 'name') {
+                const username = localStorage.getItem('name');
+                usernameDiv.textContent = username;
+            }
+        });
+    }
+
+    if (profileImage) {
+        profileImage.src = localStorage.getItem('imageBase64');
+        window.addEventListener('storage', (event) => {
+            if (event.key === 'imageBase64') {
+                const imageBase64 = localStorage.getItem('imageBase64');
+                profileImage.src = imageBase64;
+            }
+        });
+    }
+
+    renderWorkDayData();
+    ipcRenderer.on('work-day-updated', () => {
+        renderWorkDayData();
+        const btnSave = document.querySelector('.btn-add');
+        btnSave.disabled = false;
+        btnSave.style.cursor = 'pointer';
+        btnSave.value = 'create';
+    });
+});
+
+document.getElementById('logout').addEventListener('click', () => {
+    ipcRenderer.send('logout');
+});
+
+function sumOFHoursWorked(time1, time2) {
+    time1 = "00:45".split(':');
+    time2 = "01:20".split(':');
+    
+    let secondSum = Number(time1[1]) + Number(time2[1]);
+    let minSum = Number(time1[0]) + Number(time2[0]);
+    
+    if(secondSum > 59){
+      secondSum = Math.abs(60 - secondSum);
+      minSum += 1;
+    }
+    
+    if(secondSum < 10){
+      secondSum = `0${secondSum}`;
+    }
+    
+    if(minSum < 10){
+      minSum = `0${minSum}`;
+    }
+    
+    return `${minSum}:${secondSum}`;   
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -540,18 +668,30 @@ document.addEventListener('DOMContentLoaded', () => {
 	});
 
 	const usernameDiv = document.getElementById('username');
-
+	const profileImage = document.getElementById('profileImage');
 	if (usernameDiv) {
-		usernameDiv.textContent = localStorage.getItem('username')
+		usernameDiv.textContent = localStorage.getItem('name')
 		window.addEventListener('storage', (event) => {
-			if (event.key === 'username') {
-				const username = localStorage.getItem('username');
+			if (event.key === 'name') {
+				renderWorkDayData();
+				const username = localStorage.getItem('name');
 				usernameDiv.textContent = username;
 			}
 		});
 	}
 
+	if (profileImage) {
+		profileImage.src = localStorage.getItem('imageBase64');
+		window.addEventListener('storage', (event) => {
+			if (event.key === 'imageBase64') {
+				const imageBase64 = localStorage.getItem('imageBase64');
+				profileImage.src = imageBase64;
+			}
+		});
+	}
+
 	renderWorkDayData();
+	
 	// renderODOO();
 	ipcRenderer.on('work-day-updated', () => {
 		renderWorkDayData();
@@ -587,3 +727,5 @@ function updateTime() {
   
   setInterval(updateTime, 1000);
 updateTime();
+
+

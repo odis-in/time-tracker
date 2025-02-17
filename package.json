@@ -41,11 +41,6 @@
     "win": {
       "target": "NSIS"
     },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "runAfterFinish": true
-    },
     "directories": {
       "output": "dist"
     }

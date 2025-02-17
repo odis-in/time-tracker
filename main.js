@@ -1,4 +1,5 @@
-const { app, Tray, Menu, ipcMain, BrowserWindow } = require('electron');
+const { app, Tray, Menu, ipcMain, BrowserWindow, net } = require('electron');
+
 // const { autoUpdater, AppUpdater } = require("electron-updater");
 const { authenticateUser } = require('./src/odoo/authenticateUser');
 const { getClients } = require('./src/odoo/getClients');
@@ -105,6 +106,8 @@ if (!gotTheLock) {
 
     screenshotJob = cron.schedule(`*/${notifationInterval} * * * *`, () => {
       captureScreen(activityData);
+      
+
     });
 
     addressJob = cron.schedule(`*/${notifationInterval} * * * *`, () => {
@@ -119,19 +122,23 @@ if (!gotTheLock) {
 
   async function verifyCredentialsOnStart() {
     try {
-      const { username, password, url, db , uid, session_id, timeNotification} = await getCredentials(['username', 'password', 'url', 'db', 'uid', 'session_id','timeNotification']);
+      const { username, password, url, db , uid, session_id, timeNotification } = await getCredentials(['username', 'password', 'url', 'db', 'uid', 'session_id','timeNotification']);
       console.log(username, password, url, db, uid);
       if (username && password) {
         createMainWindow();
         session = true;
         console.log('Credenciales encontradas:', username, password, url, db, session, uid, timeNotification);
+        console.time('-----------------NET CONECTION-----------------')
+        console.log('¿Está online?', net.isOnline());
+        console.timeEnd('-----------------NET CONECTION-----------------')
         const online = await checkServerConnection();
         if (online) {
           const clients = await getClients(session_id, url);
-          const time_notification  = await getTimeNotification(session_id, url);
-          console.log('tm',time_notification);
           const store = await getStore();
           store.set('clients', clients);
+          store.set('connected', online);
+        } else {
+          console.log('---------------------------------------------------no conectado mi version')
         }
         setupCronJobs();
       } else {
@@ -154,6 +161,7 @@ if (!gotTheLock) {
   }
 
   app.whenReady().then(() => {
+    
     verifyCredentialsOnStart();
     createTray();
     
@@ -161,8 +169,8 @@ if (!gotTheLock) {
     ipcMain.handle('login', async (event, username, password, url, db) => {
       try {
         
-        const { setCookieHeader, uid } = await authenticateUser(username, password, url, db);
-        const [clients, tm, store] = await Promise.all([
+        const { setCookieHeader, uid, imageBase64 , name } = await authenticateUser(username, password, url, db);
+        const [clients ,tm, store] = await Promise.all([
           getClients(setCookieHeader, url),
           getTimeNotification(setCookieHeader, url),
           getStore()
@@ -172,7 +180,7 @@ if (!gotTheLock) {
        
         console.log('tm',tm);
         store.set('clients', clients);
-        return uid;
+        return {uid , name , imageBase64 };
         
       } catch (error) {
         console.error('Error al autenticar con Odoo:', error);
@@ -257,7 +265,8 @@ if (!gotTheLock) {
 
   ipcMain.on('update-work-day', async (event, data) => {
     const store = await getStore();
-    const work_day = store.set('work-day', data);
+    const { uid } = await getCredentials(['uid']);
+    const work_day = store.set(`work-day-${uid}`, data);
     // console.log('Datos actualizados:', store.get('work-day'));
 
     BrowserWindow.getAllWindows().forEach(win => {
@@ -266,9 +275,45 @@ if (!gotTheLock) {
   });
 
   ipcMain.on('send-manual-data', async (event, manualData) => {
-    checkDataAndSend(manualData);
-    sendActivityUserSummary();
     
+    console.time('----------------------MANUAL DATA----------------------')
+    const odoo_ids = await checkDataAndSend(manualData);
+    const odoo_id = await sendActivityUserSummary();
+    
+    console.log('Datos enviados:', odoo_ids, odoo_id);
+    const store = await getStore();
+    const { uid } = await getCredentials(['uid']);
+    const work_day = store.get(`work-day-${uid}`) || [];
+
+    const lastItem = work_day.find(rec => rec.odoo_id === ' ');
+    
+
+    // const lastItem = work_day[work_day.length - 1];
+
+    lastItem.odoo_ids.push(odoo_ids.odoo_ids);
+
+    if (lastItem.odoo_id === ' ' ){
+      lastItem.odoo_id = odoo_id.odoo_id;
+    }
+    
+
+    store.set(`work-day-${uid}`, work_day);
+
+    BrowserWindow.getAllWindows().forEach(win => {
+        
+      win.webContents.send('info-send', {
+        message: {
+          'activity data send': odoo_ids,
+          'summary data send': odoo_id,
+        }
+        
+      });
+    });
+
+    console.timeEnd('----------------------MANUAL DATA----------------------')
+    // BrowserWindow.getAllWindows().forEach(win => {
+    //   win.webContents.send('work-day-updated', work_day);
+    // });
   });
 
   ipcMain.on('send-data', async (event, client, description) => {
@@ -276,7 +321,7 @@ if (!gotTheLock) {
       const store = await getStore();
       const modalWindows = getModalWindow();
       console.log('Datos recibidos del formulario:', { client, description });
-  
+      const { uid } = await getCredentials(['uid']);
       // Asignación de datos a `activityData`
       activityData.partner_id = client;
       activityData.description = description;
@@ -287,10 +332,11 @@ if (!gotTheLock) {
       } else {
         console.log('Cliente no encontrado');
       }
-  
-      const work_day = store.get('work-day') || [];
+      
+      const work_day = store.get(`work-day-${uid}`) || [];
+      console.log('LEYENDO ACA ANTES DE CREAR NUEVO REGISTRO', work_day);
       let lastClient = null;
-  
+      console.time('prepareDatd')
       if (work_day.length === 0) {
         const data_work_day = {
           client: client_data,
@@ -299,11 +345,14 @@ if (!gotTheLock) {
           endWork: '00:00',
           timeWorked: '00:00',
           description: description,
+          userId: uid,
+          odoo_id: ' ',
+          odoo_ids: []
         };
   
         work_day.push(data_work_day);
-        store.set('work-day', work_day);
-        console.log('Primer cliente agregado:', store.get('work-day'));
+        store.set(`work-day-${uid}`, work_day);
+        console.log('Primer cliente agregado:', store.get(`work-day-${uid}`));
         lastClient = client_data.name;
       } else {
         const lastItem = work_day[work_day.length - 1];
@@ -318,31 +367,72 @@ if (!gotTheLock) {
             endWork: '00:00',
             timeWorked: '00:00',
             description: description,
+            userId: uid,
+            odoo_id: ' ',
+            odoo_ids: []
           };
           work_day.push(data_work_day);
-          store.set('work-day', work_day);
+          store.set(`work-day-${uid}`, work_day);
+          console.log('LEYENDO ACA DESPUES DE CREAR NUEVO REGISTRO', work_day);
         } else {
           lastItem.endWork = convertDate(activityData.presence.timestamp.split(' ')[1]);
           lastItem.timeWorked = calculateTimeDifference(lastItem.startWork, lastItem.endWork);
           lastItem.description = description;
-          store.set('work-day', work_day);
+          store.set(`work-day-${uid}`, work_day);
         }
       }
   
       // Enviar datos actualizados a las ventanas del navegador
-      BrowserWindow.getAllWindows().forEach(win => {
-        win.webContents.send('work-day-updated', work_day);
-      });
+    
   
       
       modalWindows.close();
-  
+      console.timeEnd('prepareDatd')
       // const odoo_id = await checkDataAndSend(activityData);
-      checkDataAndSend(activityData);
-      sendActivityUserSummary();
+      console.time("Total Execution");
+      
+      const [activityDataLog, summaryDataLog] = await Promise.all([
+        checkDataAndSend(activityData),
+        sendActivityUserSummary(),
+      ]);
+      
+      console.timeEnd("Total Execution");
+      
       
       activityData.partner_id = null;
       activityData.description = null;
+
+      const work_day_sincronice = store.get(`work-day-${uid}`) || [];
+      console.log('ANTES DE ACTULIAR ODOO_ID', work_day_sincronice)
+      const addIdLasItem = work_day_sincronice[work_day.length - 1];
+      
+      addIdLasItem.odoo_ids.push(activityDataLog.odoo_ids);
+      if (addIdLasItem.odoo_id === ' ' ){
+        addIdLasItem.odoo_id = summaryDataLog.odoo_id;
+      }
+      
+      store.set(`work-day-${uid}`, work_day_sincronice);
+
+
+      BrowserWindow.getAllWindows().forEach(win => {
+        win.webContents.send('work-day-updated', work_day_sincronice);
+      });
+
+
+
+      // console.log('##################################################################')
+      // console.log('Datos enviados:', summaryDataLog, activityDataLog);
+      // console.log('##################################################################')
+      BrowserWindow.getAllWindows().forEach(win => {
+        
+        win.webContents.send('info-send', {
+          message: {
+            'activity data send': activityDataLog,
+            'summary data send': summaryDataLog,
+          }
+          
+        });
+      });
     } catch (error) {
       console.error('Error procesando los datos:', error);
   
@@ -360,7 +450,8 @@ if (!gotTheLock) {
 
   ipcMain.handle('get-work-day', async (event) => {
     const store = await getStore();
-    const work_day = store.get('work-day') || [];
+    const { uid } = await getCredentials(['uid']);
+    const work_day = store.get(`work-day-${uid}`) || [];
     return work_day;
   });
 
@@ -372,7 +463,8 @@ if (!gotTheLock) {
 
   ipcMain.on('delete_data', async () => {
     const store = await getStore();
-    store.delete('work-day');
+    const { uid } = await getCredentials(['uid']);
+    store.delete(`work-day-${uid}`);
   });
 
   ipcMain.on('sendSummary' , () => {
@@ -396,10 +488,10 @@ if (!gotTheLock) {
       app.quit();
     }
   });
-  app.setLoginItemSettings({
-    openAtLogin: true,
-    openAsHidden: false,
-  })
+  // app.setLoginItemSettings({
+  //   openAtLogin: true,
+  //   openAsHidden: false,
+  // })
   app.on('activate', () => {
     const mainWindow = getMainWindow();
     const loginWindow = getLoginWindow();

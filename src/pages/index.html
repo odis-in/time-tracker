@@ -13,9 +13,10 @@
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-4">
           <div class="avatar">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+            <!-- <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
               <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-            </svg>
+            </svg> -->
+            <img id="profileImage" alt="User Avatar" class="size-6"/>
           </div>
           <div class="grid gap-1">
             <div id="username" class="font-medium text-lg element"></div>
@@ -31,10 +32,19 @@
       <div class="separator"></div>
       <!-- Nueva tabla de trabajo del día -->
       <div class="work-day-table">
-        
         <h2 class="text-lg font-medium mb-2 element">Lista de trabajo del día</h2>
+        <div class="flex justify-between items-center mb-4">
+        
         <button class="btn-add" id="btn-add" onclick="addRow(this)" value="create">Crear Nuevo</button>
         <!-- <button class="btn-add" id="btn-send">Enviar Datos</button> -->
+        
+          <!-- sumador de horas -->
+        <div>
+          <label for="total-hours">Total de horas trabajadas:</label>
+          <span id="counter">10</span>
+        </div>
+        
+        </div>
         <div class="table-container">
           <table class="table-day">
             <thead>

@@ -5,7 +5,7 @@ function calculateTimeDifference(time1, time2) {
     const time1InMinutes = h1 * 60 + m1;
     const time2InMinutes = h2 * 60 + m2;
 
-    console.log('times', time1InMinutes, time2InMinutes);
+    
 
     let differenceInMinutes = Math.abs(time2InMinutes - time1InMinutes);
     const hours = Math.floor(differenceInMinutes / 60);
@@ -30,7 +30,7 @@ function convertDate(hour) {
         
         const hourLocal = date.toLocaleTimeString('es-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
 
-        console.log('hourLocal', hourLocal); 
+        
         return hourLocal; 
     }
 }

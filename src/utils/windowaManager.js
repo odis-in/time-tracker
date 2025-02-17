@@ -14,6 +14,7 @@ function createLoginWindow() {
   loginWindow = new BrowserWindow({
     width: 700,
     height: 650,
+    icon: path.join(__dirname, './src/assets/icons/png/time-tracker-img.png'),
     webPreferences: {
       // preload: path.join(__dirname, '../..preload.js'),
       nodeIntegration: true,
@@ -57,6 +58,7 @@ function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1040,
     height: 600,
+    icon: path.join('./src/assets/img/time-tracker-img'),
     webPreferences: {
       // preload: path.join(__dirname, '../preload.js'),
       nodeIntegration: true,
