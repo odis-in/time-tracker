@@ -17,6 +17,7 @@
   "license": "ISC",
   "build": {
     "appId": "com.electron-project",
+    "asar": false,
     "productName": "Time Tracker",
     "dmg": {
       "contents": [

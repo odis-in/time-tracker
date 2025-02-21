@@ -354,6 +354,22 @@ tr:nth-child(even) {
   animation: fadeIn 0.3s ease-in;
 }
 
+@keyframes opacityTransition {
+  0% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.5;
+  }
+}
+
+.opacity-50 {
+  animation: opacityTransition 2s infinite; 
+}
+
 .time-mode {
   width: 40px;
   height: 40px;

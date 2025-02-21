@@ -67,6 +67,9 @@ button {
 }
 
 button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
   background-color: #007bff;
   color: #fff;
   font-size: 16px;
@@ -121,4 +124,31 @@ button:hover {
 .element {
   user-select: none;  
   pointer-events: none;  
+}
+
+.no-loading {
+  display: none; 
+}
+
+.loading {
+  width: 20px; 
+  height: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: spin 2s linear infinite; 
+}
+
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg); /* Al principio no tiene rotación */
+  }
+  100% {
+    transform: rotate(360deg); /* Al final gira 360 grados */
+  }
+}
+
+.button-svg.loading #button-text {
+  display: none;
 }

@@ -136,7 +136,7 @@ function createModalWindow() {
 
   modalWindow = new BrowserWindow({
     parent: mainWindow,
-    // modal: true,
+    modal: true,
     // show: false,
     width: 415,
     height: 340,

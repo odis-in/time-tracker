@@ -37,23 +37,57 @@ async function showClients() {
 
 
 document.addEventListener('DOMContentLoaded', () => {
-
+    const closeButton = document.querySelector('#close');
+    const button = document.querySelector('button');
     document.getElementById('loginForm').addEventListener('submit', async (event) => { 
         event.preventDefault();
+        const svgElement = document.getElementById('svg-loading'); 
+        const buttonText = document.getElementById('button-text');
+        
+     
+        if (svgElement) { 
+          svgElement.classList.add('loading'); 
+          svgElement.classList.remove('no-loading');
+          buttonText.style.display = 'none';
+          closeButton.style.pointerEvents = 'none'; // Bloquea clics en el SVG
+          closeButton.style.opacity = '0.5'; // Opcional: lo hace visualmente "deshabilitado"
+          button.style.opacity = '0.5'; // Opcional: lo hace visualmente "deshabilitado"
+          button.style.pointerEvents = 'none'; // Deshabilita el botón
+
+        } 
         
         const formData = new FormData(event.target);
         const description = formData.get('description');
         const client = formData.get('client');
         console.log('Datos enviados del formulario:', { client, description });
-        event.target.querySelector('input[name="description"]').value = '';
-        ipcRenderer.send('send-data', client, description);
+        // event.target.querySelector('input[name="description"]').value = '';
         
+        // setTimeout(() => {
+        //     document.getElementById('svg-loading').classList.add('no-loading');
+        //     document.getElementById('svg-loading').classList.remove('loading');
+        //     document.getElementById('button-text').style.display = 'block';
+        // }, 5000);
+        
+        
+        ipcRenderer.send('send-data', client, description);
+
+        ipcRenderer.once('send-data-response', () => {
+            // Restaurar el botón cuando llegue la respuesta
+            event.target.querySelector('input[name="description"]').value = '';
+            document.getElementById('svg-loading').classList.add('no-loading');
+            document.getElementById('svg-loading').classList.remove('loading');
+            buttonText.style.display = 'block';
+            closeButton.style.pointerEvents = 'auto'; // habilita clics en el SVG
+            closeButton.style.opacity = '1'; 
+            button.style.pointerEvents = 'auto'; 
+            button.style.opacity = '1';
+
+        });
     
     });
-
     showClients();    
 
-    const closeButton = document.getElementById('close');
+   
     closeButton.addEventListener('click', () => {
       ipcRenderer.send('close-modal-window');
     });

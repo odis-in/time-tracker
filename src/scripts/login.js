@@ -2,7 +2,18 @@ const { ipcRenderer } = require('electron');
 
 document.getElementById('loginForm').addEventListener('submit', async (event) => {
   event.preventDefault();
+  document.getElementById('error-message').textContent = '';
+  const svgElement = document.getElementById('svg-loading'); 
+  const buttonText = document.getElementById('button-text');
+  if (svgElement) { 
+    svgElement.classList.add('loading'); 
+    svgElement.classList.remove('no-loading');
+    buttonText.style.display = 'none';
+  } 
+  
+  
 
+  
   const formData = new FormData(event.target);
   const username = formData.get('username');
   const password = formData.get('password');
@@ -27,10 +38,17 @@ document.getElementById('loginForm').addEventListener('submit', async (event) =>
       document.getElementById('error-message').textContent = '';
       // event.target.reset(); limpiar formulario
       document.getElementById('username').focus();
+      svgElement.classList.add('no-loading')
+      svgElement.classList.remove('loading')
+      buttonText.style.display = 'block';
     }
+   
   } catch (error) {
     document.getElementById('error-message').textContent = 'Usuario o contraseña incorrectos';
     document.getElementById('username').focus();
+    svgElement.classList.add('no-loading')
+    svgElement.classList.remove('loading')
+    buttonText.style.display = 'block';
   }
 });
 

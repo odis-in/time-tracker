@@ -1,7 +1,8 @@
 const { sendData, sendDataSummary, updateData } = require('../odoo/sendData');
-const { toCorrectISO } = require('./calculateTimeDifference');
+const { toCorrectISO, convertDate } = require('./calculateTimeDifference');
 const { checkServerConnection } = require('./checkConnection');
 const { getCredentials } = require('./crendentialManager');
+
 
 async function getStore() {
     const { default: Store } = await import('electron-store');
@@ -36,13 +37,27 @@ async function sendLocalData(key, type) {
                 console.log('Error al enviar datos almacenados localmente:', err)
             }
         } else {
+            let index = 0;
             for (const data of savedData) {
                 try {
                     const activity = data.presence_status
                     const partner_id = data.partner_id;
-                    const result = await sendData('user.activity', data);
+                    const time = convertDate(data.timestamp.split(' ')[1])
+                    //ver si no se a borrado de work-day-uid
+                    const dataInsincroniceData = sincroniceData.filter(element => 
+                        element.client.id === partner_id && 
+                        element.startWork <= time && 
+                        element.endWork >= time
+                      );
+                    
+                    if (dataInsincroniceData.length === 0) {
+                        console.log('No se encontro el dato en sincroniceData');
+                        savedData.slice(index, 1); //borrar objeto actual
+                        store.set(key, savedData);
+                    } else  {
+                    result = await sendData('user.activity', data);
                     console.log('Datos off line enviados  al servidor:', result.odoo_ids);
-                   
+                    }
                     
                     if (activity==='active') {
                         //filtrar por odoo_id = ' ' sincroniceData
@@ -123,6 +138,7 @@ async function sendActivityUserSummary() {
     console.log(uid.uid);
 
     const work_day = store.get(`work-day-${uid.uid}`) || [];
+    console.log('---------------------------WORK DAY', work_day)
     const today = new Date();
     const todayFormatted = today.toLocaleDateString('en-US');
 

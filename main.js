@@ -16,6 +16,7 @@ const { calculateTimeDifference, convertDate } = require('./src/utils/calculateT
 const { sendActivityUserSummary } = require('./src/utils/dataManager');
 const nodeNotifier = require('node-notifier');
 const { checkServerConnection } = require('./src/utils/checkConnection');
+const { getUserActivity } = require('./src/odoo/getUserActivity');
 async function getStore() {
   const { default: Store } = await import('electron-store');
   return new Store();
@@ -49,18 +50,31 @@ if (!gotTheLock) {
     const mainWindow = getMainWindow();
     const loginWindow = getLoginWindow();
 
-    if (mainWindow && mainWindow.isMinimized()) {
-      mainWindow.restore();
-    }
+    // // // if (mainWindow && mainWindow.isMinimized()) {
+    // // //   mainWindow.restore();
+    // // // }
 
-    if (mainWindow) {
+    // // // if (mainWindow && session) {
+    // // //   console.log('------------------SESION------------------------------')
+    // // //   coonsole.log(session);
+    // // //   mainWindow.show();
+    // // //   mainWindow.focus();
+    // // // } else if (loginWindow) {
+    // // //   console.log('------------------SESION------------------------------')
+    // // //   coonsole.log(session);
+    // // //   loginWindow.show();
+    // // //   loginWindow.focus();
+    // // // } else {
+      
+    // // //   createLoginWindow();
+    // // // }
+
+    if (session) {
       mainWindow.show();
       mainWindow.focus();
-    } else if (loginWindow) {
+    } else {
       loginWindow.show();
       loginWindow.focus();
-    } else {
-      createLoginWindow();
     }
   });
 
@@ -125,22 +139,109 @@ if (!gotTheLock) {
       const { username, password, url, db , uid, session_id, timeNotification } = await getCredentials(['username', 'password', 'url', 'db', 'uid', 'session_id','timeNotification']);
       console.log(username, password, url, db, uid);
       if (username && password) {
-        createMainWindow();
+        console.time('----------------------START APP----------------------')
+        
         session = true;
         console.log('Credenciales encontradas:', username, password, url, db, session, uid, timeNotification);
-        console.time('-----------------NET CONECTION-----------------')
-        console.log('¿Está online?', net.isOnline());
-        console.timeEnd('-----------------NET CONECTION-----------------')
         const online = await checkServerConnection();
         if (online) {
           const clients = await getClients(session_id, url);
+          console.time('-----------------GET USER ACTIVITY-----------------')
+          const userActivityData = await getUserActivity();
+          console.timeEnd('-----------------GET USER ACTIVITY-----------------')
           const store = await getStore();
+          const work_day = store.get(`work-day-${uid}`) || [];
+          store.set(`data-user-${uid}`, userActivityData);
+          const synchronizeData = store.get(`data-user-${uid}`) || { summaries: [], activities: [] };
+          let data = [];
+          // // // let groupedActivities = [];
+          // // // let currentGroup = [];
+
+          // // // // Recorremos las actividades
+          // // // synchronizeData.activities.forEach((activity, index, activities) => {
+          // // //   // Si currentGroup está vacío, agregamos la primera actividad
+          // // //   if (currentGroup.length === 0) {
+          // // //     currentGroup.push(activity.id);
+          // // //   } else {
+          // // //     // Si el partner_id es el mismo que el anterior y son consecutivos, se agrupan
+          // // //     if (activity.partner_id[0] === synchronizeData.activities[index - 1].partner_id[0]) {
+          // // //       currentGroup.push(activity.id);
+          // // //     } else {
+          // // //       // Si el grupo tiene más de un elemento, lo agregamos al resultado
+          // // //       groupedActivities.push(currentGroup);
+          // // //       // Iniciamos un nuevo grupo con el registro actual
+          // // //       currentGroup = [activity.id];
+          // // //     }
+          // // //   }
+          
+          // // //   // Si es la última actividad, aseguramos de agregar el último grupo
+          // // //   if (index === activities.length - 1) {
+          // // //     groupedActivities.push(currentGroup);
+          // // //   }
+          // // // });
+          let groupedActivities = [];
+          let usedActivities = new Set(); // Para evitar duplicados
+  
+          synchronizeData.summaries.forEach((summary, index) => {
+            let summaryPartnerId = summary.partner_id[0];
+            let nextSummary = synchronizeData.summaries[index + 1];
+  
+            let activitiesForSummary = synchronizeData.activities
+              .filter(activity => 
+                activity.partner_id[0] === summaryPartnerId && 
+                !usedActivities.has(activity.id) // Evitamos reusar actividades
+              )
+              .map(activity => {
+                usedActivities.add(activity.id);
+                return activity.id;
+              });
+  
+            // Si el siguiente summary tiene el mismo partner_id, separamos correctamente
+            if (nextSummary && nextSummary.partner_id[0] === summaryPartnerId) {
+              groupedActivities.push([activitiesForSummary[0]]); // Solo el primer elemento en un nuevo grupo
+              activitiesForSummary.shift(); // Eliminamos el primero del array original
+            }
+  
+            // Agregamos el resto de actividades (si quedan)
+            if (activitiesForSummary.length > 0) {
+              groupedActivities.push(activitiesForSummary);
+            }
+          });
+
+          synchronizeData.summaries.forEach((element, index) => {
+            
+            const activity = synchronizeData.activities.find(rec => 
+              rec.partner_id[0] === element.partner_id[0] && rec.description !== false              
+            );
+            const todayFormatted = new Date().toLocaleDateString('en-US');
+            const activitiesForSummary = groupedActivities[index] || [];
+            const data_work_day = {
+              client: { id: element.partner_id[0], name: element.partner_id[1] },
+              date: todayFormatted,
+              startWork: convertDate(element.start_time.split(' ')[1]),
+              endWork: convertDate(element.end_time.split(' ')[1]),
+              timeWorked: element.total_hours,
+              description: activity  ? activity.description  || ' ' : ' ',
+              userId: uid,
+              odoo_id: element.id,
+              odoo_ids: activitiesForSummary
+            };
+
+            data.push(data_work_day);
+          });
+          data.sort((a, b) => a.startWork.localeCompare(b.startWork))
+          store.set(`work-day-${uid}`, data);
+
+          BrowserWindow.getAllWindows().forEach(win => {
+            win.webContents.send('work-day-updated', work_day);
+          });
+          
           store.set('clients', clients);
-          store.set('connected', online);
         } else {
-          console.log('---------------------------------------------------no conectado mi version')
         }
+        createMainWindow();
         setupCronJobs();
+        console.timeEnd('----------------------START APP----------------------')
       } else {
         createLoginWindow();
         session = false;
@@ -175,9 +276,101 @@ if (!gotTheLock) {
           getTimeNotification(setCookieHeader, url),
           getStore()
         ]);
+        console.log('--------------------UID--------------------------')
+        console.log('UID:', uid);
 
         await saveCredentials(username, password, url, tm.time_notification.toString() , uid.toString(), setCookieHeader.toString(), db);
-       
+        const userActivityData = await getUserActivity();
+        console.timeEnd('-----------------GET USER ACTIVITY-----------------')
+        const work_day = store.get(`work-day-${uid}`) || [];
+        console.log('-----------------USER ODOO DATA-----------------')
+        console.log(userActivityData);
+        store.set(`data-user-${uid}`, userActivityData);
+        const synchronizeData = store.get(`data-user-${uid}`) || { summaries: [], activities: [] };
+        let data = [];
+        // // // let groupedActivities = [];
+        // // // let currentGroup = [];
+
+        // Recorremos las actividades
+        // // // synchronizeData.activities.forEach((activity, index, activities) => {
+        // // //   // Si currentGroup está vacío, agregamos la primera actividad
+        // // //   if (currentGroup.length === 0) {
+        // // //     currentGroup.push(activity.id);
+        // // //   } else {
+        // // //     // Si el partner_id es el mismo que el anterior y son consecutivos, se agrupan
+        // // //     if (activity.partner_id[0] === synchronizeData.activities[index - 1].partner_id[0]) {
+        // // //       currentGroup.push(activity.id);
+        // // //     } else {
+        // // //       // Si el grupo tiene más de un elemento, lo agregamos al resultado
+        // // //       groupedActivities.push(currentGroup);
+        // // //       // Iniciamos un nuevo grupo con el registro actual
+        // // //       currentGroup = [activity.id];
+        // // //     }
+        // // //   }
+        
+        // // //   // Si es la última actividad, aseguramos de agregar el último grupo
+        // // //   if (index === activities.length - 1) {
+        // // //     groupedActivities.push(currentGroup);
+        // // //   }
+        // // // });
+
+
+        let groupedActivities = [];
+        let usedActivities = new Set(); // Para evitar duplicados
+
+        synchronizeData.summaries.forEach((summary, index) => {
+          let summaryPartnerId = summary.partner_id[0];
+          let nextSummary = synchronizeData.summaries[index + 1];
+
+          let activitiesForSummary = synchronizeData.activities
+            .filter(activity => 
+              activity.partner_id[0] === summaryPartnerId && 
+              !usedActivities.has(activity.id) // Evitamos reusar actividades
+            )
+            .map(activity => {
+              usedActivities.add(activity.id);
+              return activity.id;
+            });
+
+          // Si el siguiente summary tiene el mismo partner_id, separamos correctamente
+          if (nextSummary && nextSummary.partner_id[0] === summaryPartnerId) {
+            groupedActivities.push([activitiesForSummary[0]]); // Solo el primer elemento en un nuevo grupo
+            activitiesForSummary.shift(); // Eliminamos el primero del array original
+          }
+
+          // Agregamos el resto de actividades (si quedan)
+          if (activitiesForSummary.length > 0) {
+            groupedActivities.push(activitiesForSummary);
+          }
+        });
+
+        synchronizeData.summaries.forEach((element, index) => {
+          
+          const activity = synchronizeData.activities.find(rec => 
+            rec.partner_id[0] === element.partner_id[0] && rec.description !== false              
+          );
+          const todayFormatted = new Date().toLocaleDateString('en-US');
+          const activitiesForSummary = groupedActivities[index] || [];
+          const data_work_day = {
+            client: { id: element.partner_id[0], name: element.partner_id[1] },
+            date: todayFormatted,
+            startWork: convertDate(element.start_time.split(' ')[1]),
+            endWork: convertDate(element.end_time.split(' ')[1]),
+            timeWorked: element.total_hours,
+            description: activity  ? activity.description  || ' ' : ' ',
+            userId: uid,
+            odoo_id: element.id,
+            odoo_ids: activitiesForSummary
+          };
+
+          data.push(data_work_day);
+        });
+        data.sort((a, b) => a.startWork.localeCompare(b.startWork))
+        store.set(`work-day-${uid}`, data);
+
+        BrowserWindow.getAllWindows().forEach(win => {
+          win.webContents.send('work-day-updated', work_day);
+        });
         console.log('tm',tm);
         store.set('clients', clients);
         return {uid , name , imageBase64 };
@@ -189,49 +382,7 @@ if (!gotTheLock) {
     });
   });
 
-  // autoUpdater.on("update-available", (info) => {
-  //   console.log(`Update available. Current version ${app.getVersion()}`);
-  //   nodeNotifier.notify({
-  //     title: 'Actualización disponible',
-  //     message: 'Hay una actualización disponible para la aplicación',
-  //     icon: path.join(__dirname, './src/assets/img/tele-trabajo.png'),
-  //     sound: true,
-  //     wait: true
-  //   });
-  //   autoUpdater.downloadUpdate(); 
-  //   tray.setToolTip('comenzando la descarga'); // Descarga la actualización
-  // });
-  
-  // autoUpdater.on("update-downloaded", (info) => {
-  //   console.log(`Update downloaded. Current version ${app.getVersion()}`);
-  //   nodeNotifier.notify({
-  //     title: 'Actualización descargada',
-  //     message: 'La actualización ha sido descargada y está lista para ser instalada',
-  //     icon: path.join(__dirname, './src/assets/img/tele-trabajo.png'),
-  //     sound: true,
-  //     wait: true
-  //   });
-  // });
 
-  // autoUpdater.on('download-progress', (progressObj) => {
-  //   const { percent } = progressObj;
-  
-  //   tray.setToolTip(`Descargando actualización... ${percent.toFixed(2)}%`);
- 
-  // });
-
-  // autoUpdater.on("error", (info) => {
-  //   console.log(`Error in auto-updater. ${info}`);
-  //   nodeNotifier.notify({
-  //     title: 'Error en la actualización',
-  //     message: `Error durante la actualización: ${info}`,
-  //     icon: path.join(__dirname, './src/assets/img/tele-trabajo.png'),
-  //     sound: true,
-  //     wait: true
-  //   });
-
-
-  // });
 
   ipcMain.on('close-main-window', () => {
     const mainWindow = getMainWindow();
@@ -248,6 +399,7 @@ if (!gotTheLock) {
   ipcMain.on('logout', async () => {
     try {
       await clearCredentials();
+
       console.log('Credenciales eliminadas');
 
       const mainWindow = getMainWindow();
@@ -274,12 +426,29 @@ if (!gotTheLock) {
     });
   });
 
+  ipcMain.on('update-work-day-front', async (event, data) => {
+    const store = await getStore();
+    const { uid } = await getCredentials(['uid']);
+    const work_day = store.set(`work-day-${uid}`, data);
+    console.log('Datos actualizados:', store.get('work-day'));
+
+    // // // BrowserWindow.getAllWindows().forEach(win => {
+    // // //   win.webContents.send('work-day-updated', work_day);
+    // // // });
+  });
+
   ipcMain.on('send-manual-data', async (event, manualData) => {
     
     console.time('----------------------MANUAL DATA----------------------')
-    const odoo_ids = await checkDataAndSend(manualData);
-    const odoo_id = await sendActivityUserSummary();
-    
+    console.time('------------------SENT INFO----------------------------')
+    // // // const odoo_ids = await checkDataAndSend(manualData);
+    // // // const odoo_id = await sendActivityUserSummary();
+
+    const [odoo_ids, odoo_id] = await Promise.all([  
+      await checkDataAndSend(manualData),
+      await sendActivityUserSummary()
+    ]);
+    console.timeEnd('------------------SENT INFO----------------------------')
     console.log('Datos enviados:', odoo_ids, odoo_id);
     const store = await getStore();
     const { uid } = await getCredentials(['uid']);
@@ -298,7 +467,10 @@ if (!gotTheLock) {
     
 
     store.set(`work-day-${uid}`, work_day);
-
+    // // // console.time('-----------------GET USER ACTIVITY-----------------')
+    // // //   const userActivityData = await getUserActivity();
+    // // //   console.log(userActivityData);
+    // // //   console.timeEnd('-----------------GET USER ACTIVITY-----------------')
     BrowserWindow.getAllWindows().forEach(win => {
         
       win.webContents.send('info-send', {
@@ -309,17 +481,20 @@ if (!gotTheLock) {
         
       });
     });
-
+    event.reply('send-manual-data-response');
     console.timeEnd('----------------------MANUAL DATA----------------------')
-    // BrowserWindow.getAllWindows().forEach(win => {
-    //   win.webContents.send('work-day-updated', work_day);
-    // });
-  });
+    BrowserWindow.getAllWindows().forEach(win => {
+      win.webContents.send('work-day-updated', work_day);
+    });
 
+    
+  });
+  //ENVIAR INFO DE ACTIVIDAD
   ipcMain.on('send-data', async (event, client, description) => {
     try {
       const store = await getStore();
-      const modalWindows = getModalWindow();
+      const modalWindows = createModalWindow();
+      modalWindows.show();
       console.log('Datos recibidos del formulario:', { client, description });
       const { uid } = await getCredentials(['uid']);
       // Asignación de datos a `activityData`
@@ -383,40 +558,48 @@ if (!gotTheLock) {
       }
   
       // Enviar datos actualizados a las ventanas del navegador
-    
+      // // // BrowserWindow.getAllWindows().forEach(win => {
+      // // //   win.webContents.send('work-day-updated', work_day);
+      // // // });
   
       
-      modalWindows.close();
+      
       console.timeEnd('prepareDatd')
       // const odoo_id = await checkDataAndSend(activityData);
       console.time("Total Execution");
-      
+
+ 
       const [activityDataLog, summaryDataLog] = await Promise.all([
         checkDataAndSend(activityData),
         sendActivityUserSummary(),
       ]);
+
+      console.time('-----------------GET USER ACTIVITY-----------------')
+      const userActivityData = await getUserActivity();
+      store.set(`data-user-${uid}`, userActivityData);
+      console.log(userActivityData);
+      console.timeEnd('-----------------GET USER ACTIVITY-----------------')
       
       console.timeEnd("Total Execution");
-      
       
       activityData.partner_id = null;
       activityData.description = null;
 
       const work_day_sincronice = store.get(`work-day-${uid}`) || [];
-      console.log('ANTES DE ACTULIAR ODOO_ID', work_day_sincronice)
       const addIdLasItem = work_day_sincronice[work_day.length - 1];
-      
       addIdLasItem.odoo_ids.push(activityDataLog.odoo_ids);
       if (addIdLasItem.odoo_id === ' ' ){
         addIdLasItem.odoo_id = summaryDataLog.odoo_id;
       }
-      
       store.set(`work-day-${uid}`, work_day_sincronice);
-
-
+      // ESPERA PARA QUE SE ACTUALICE EL STORE
       BrowserWindow.getAllWindows().forEach(win => {
         win.webContents.send('work-day-updated', work_day_sincronice);
       });
+
+      event.reply('send-data-response');
+      //CERRAR MODAL HASTA DESPUES DE ENVIAR LA INFO
+      modalWindows.close();
 
 
 
@@ -488,10 +671,13 @@ if (!gotTheLock) {
       app.quit();
     }
   });
-  // app.setLoginItemSettings({
-  //   openAtLogin: true,
-  //   openAsHidden: false,
-  // })
+
+  //abrir app al enceder la pc
+  app.setLoginItemSettings({
+    openAtLogin: true,
+    openAsHidden: false,
+  })
+  
   app.on('activate', () => {
     const mainWindow = getMainWindow();
     const loginWindow = getLoginWindow();

@@ -156,6 +156,7 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 	// const btnSend = document.getElementById('btn-send');
 	const now = new Date().toLocaleTimeString('es-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
 	if (btnSave.value != 'no_create') {
+		//ACTULIZANDO REGISTRO
 		const row = button.closest('tr');
 
 		const startInputValidate = document.querySelector('.start-time input').value;
@@ -240,13 +241,20 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 			row.querySelector('.start-time').textContent = startInput.value;
 			row.querySelector('.end-time').textContent = endInput.value;
 			ipcRenderer.send('update-work-day', updatedData);
+			//ordenar
+			const order_data = updatedData.sort((a, b) => a.startWork.localeCompare(b.startWork));
+			localStorage.setItem('workDayData', JSON.stringify(order_data));
+			ipcRenderer.send('update-work-day', order_data)
+
 			updateData('user.activity.summary', updateActivityData)
+			
 			
 			
 		}
 	} else {
-		btnSave.disabled = false;
-		btnSave.style.cursor = 'pointer';
+		//CREANDO NUEVO REGISTRO
+		// // // btnSave.disabled = false;
+		// // // btnSave.style.cursor = 'pointer';
 		// btnSend.disabled = false;
 		// btnSend.style.cursor = 'pointer';
 		const selectClient = document.querySelector('.client');
@@ -294,7 +302,7 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 		}
 		const uid = localStorage.getItem('uid');
 		const newRecord = {
-			client: {id: selectClient.value , name: selectClientText},
+			client: {id: parseInt(selectClient.value) , name: selectClientText},
 			date: new Date().toLocaleDateString('en-US'),
 			startWork: startInput,
 			endWork: endInput,
@@ -304,6 +312,9 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 			odoo_id: ' ',
 			odoo_ids: []
 		}
+
+
+		
 	//		'2025-01-14 16:52:03',
 		// console.log(toCorrectISO(`${newRecord.date} ${newRecord.startWork}`))
 	    
@@ -328,19 +339,16 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 		// 	ipcRenderer.send('update-work-day', updatedData);
 		// } else {
 		// Aplicar la animación fade-in a la tabla o a las filas de la tabla
-		const tbody = document.getElementById('work-day-tbody');
-		tbody.classList.add('fade-in'); 
-		tbody.classList.remove('tbody-disabled');
-		setTimeout(() => {
-		  tbody.classList.remove('fade-in'); 
+		// // // const tbody = document.getElementById('work-day-tbody');
+		// // // tbody.classList.add('fade-in'); 
+		// // // tbody.classList.remove('tbody-disabled');
+		// // // setTimeout(() => {
+		// // //   tbody.classList.remove('fade-in'); 
 		  
-		}, 100); 
-		btnSave.value = 'create';
-		ipcRenderer.send('add-row', false);
+		// // // }, 100); 
+		
 		const updatedData = [...workDayData, newRecord];
 		const order_data = updatedData.sort((a, b) => a.startWork.localeCompare(b.startWork));
-		localStorage.setItem('workDayData', JSON.stringify(order_data));
-		ipcRenderer.send('update-work-day', order_data)
 
 
 		const activityData = {
@@ -357,11 +365,29 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 		
 		await getIpAndLocation(activityData);
 		await captureScreen(activityData);
-		activityData.partner_id = newRecord.client.id;
+		activityData.partner_id = parseInt(newRecord.client.id);
 		activityData.presence = { timestamp: toCorrectISO(`${newRecord.date} ${newRecord.startWork}`), status: 'active'};
 		activityData.description = description;
 		
 		ipcRenderer.send('send-manual-data', activityData);
+		ipcRenderer.send('update-work-day-front', order_data)
+		tbody.classList.add('fade-in');
+		tbody.classList.add('opacity-50'); 
+		const btnSend = document.querySelector('.save-btn');
+		btnSend.style.cursor = 'not-allowed';
+		btnSend.disabled = true;
+		ipcRenderer.once('send-manual-data-response', () => {
+			const tbody = document.getElementById('work-day-tbody');
+			tbody.classList.remove('opacity-50'); 
+			tbody.classList.remove('tbody-disabled');
+			tbody.classList.remove('fade-in'); 
+			localStorage.setItem('workDayData', JSON.stringify(order_data));
+			
+			//habilitar botones de nuevo
+			btnSave.disabled = false;
+			btnSave.style.cursor = 'pointer';
+			btnSave.value = 'create';
+		});
 	}
 }
 
@@ -548,7 +574,7 @@ function convertMinutesToTime(minutes) {
 
 async function renderWorkDayData() {
     const workDayData = await ipcRenderer.invoke('get-work-day');
-    
+    console.log('workDayData', workDayData);
     const today = new Date();
     const todayFormatted = today.toLocaleDateString('en-US');
     
