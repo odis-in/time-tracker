@@ -10,7 +10,7 @@ async function sendData(modelName, activityData) {
             throw new Error('Credenciales no encontradas. Por favor, autentique nuevamente.');
         }
 
-        const models = xmlrpc.createSecureClient({ url: `${url}/xmlrpc/2/object` });
+        const models = xmlrpc.createClient({ url: `${url}/xmlrpc/2/object` });
 
         activityData.user_id = uid;
 
@@ -44,7 +44,7 @@ async function sendDataSummary(modelName, activityData) {
             throw new Error('Credenciales no encontradas. Por favor, autentique nuevamente.');
         }
 
-        const models = xmlrpc.createSecureClient({ url: `${url}/xmlrpc/2/object` });
+        const models = xmlrpc.createClient({ url: `${url}/xmlrpc/2/object` });
 
         const dataSummary = activityData.map((data) => {
             return {
@@ -124,7 +124,7 @@ async function updateData(modelName , activityData) {
             throw new Error('Credenciales no encontradas. Por favor, autentique nuevamente.');
         }
 
-        const models = xmlrpc.createSecureClient({ url: `${url}/xmlrpc/2/object` });
+        const models = xmlrpc.createClient({ url: `${url}/xmlrpc/2/object` });
 
         const dataToUpdate = {
             start_time: activityData[0].start_time,

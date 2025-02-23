@@ -8,7 +8,7 @@
     "pack": "build --dir",
     "dist": "electron-builder"
   },
-  "repository": "https://github.com/carlosaid/electron-project",
+  "repository": "https://github.com/carlosaid/time-tracker",
   "publish": {
     "provider": "github",
     "releaseType": "release"

@@ -9,7 +9,7 @@ async function getUserActivity() {
             throw new Error('Credenciales no encontradas. Por favor, autentique nuevamente.');
         }
 
-        const models = xmlrpc.createSecureClient({ url: `${url}/xmlrpc/2/object` });
+        const models = xmlrpc.createClient({ url: `${url}/xmlrpc/2/object` });
 
         // 🔹 Obtener la fecha de hoy en UTC (Formato: "YYYY-MM-DD")
         /// obtener formato de hora local 

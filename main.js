@@ -1,6 +1,6 @@
 const { app, Tray, Menu, ipcMain, BrowserWindow, net } = require('electron');
 
-// const { autoUpdater, AppUpdater } = require("electron-updater");
+const { autoUpdater, AppUpdater } = require("electron-updater");
 const { authenticateUser } = require('./src/odoo/authenticateUser');
 const { getClients } = require('./src/odoo/getClients');
 const { getTimeNotification } = require('./src/odoo/getTimeNotification');
@@ -21,8 +21,8 @@ async function getStore() {
   const { default: Store } = await import('electron-store');
   return new Store();
 }
-// autoUpdater.autoDownload = false;
-// autoUpdater.autoInstallOnAppQuit = true;
+autoUpdater.autoDownload = false;
+autoUpdater.autoInstallOnAppQuit = true;
 let tray;
 let presenceJob = null;
 let screenshotJob = null;
@@ -266,7 +266,7 @@ if (!gotTheLock) {
     verifyCredentialsOnStart();
     createTray();
     
-    // autoUpdater.checkForUpdates();
+    autoUpdater.checkForUpdates();
     ipcMain.handle('login', async (event, username, password, url, db) => {
       try {
         
@@ -382,7 +382,49 @@ if (!gotTheLock) {
     });
   });
 
+  autoUpdater.on("update-available", (info) => {
+    console.log(`Update available. Current version ${app.getVersion()}`);
+    nodeNotifier.notify({
+      title: 'Actualización disponible',
+      message: 'Hay una actualización disponible para la aplicación',
+      icon: path.join(__dirname, './src/assets/img/tele-trabajo.png'),
+      sound: true,
+      wait: true
+    });
+    autoUpdater.downloadUpdate(); 
+    tray.setToolTip('comenzando la descarga'); // Descarga la actualización
+  });
+  
+  autoUpdater.on("update-downloaded", (info) => {
+    console.log(`Update downloaded. Current version ${app.getVersion()}`);
+    nodeNotifier.notify({
+      title: 'Actualización descargada',
+      message: 'La actualización ha sido descargada y está lista para ser instalada',
+      icon: path.join(__dirname, './src/assets/img/tele-trabajo.png'),
+      sound: true,
+      wait: true
+    });
+  });
 
+  autoUpdater.on('download-progress', (progressObj) => {
+    const { percent } = progressObj;
+  
+    tray.setToolTip(`Descargando actualización... ${percent.toFixed(2)}%`);
+ 
+  });
+
+  autoUpdater.on("error", (info) => {
+    console.log(`Error in auto-updater. ${info}`);
+    nodeNotifier.notify({
+      title: 'Error en la actualización',
+      message: `Error durante la actualización: ${info}`,
+      icon: path.join(__dirname, './src/assets/img/tele-trabajo.png'),
+      sound: true,
+      wait: true
+    });
+
+
+  });
 
   ipcMain.on('close-main-window', () => {
     const mainWindow = getMainWindow();
