@@ -1,6 +1,7 @@
-const notifier = require('node-notifier');
+const nodeNotifier = require('node-notifier');
 const { checkDataAndSend } = require('./checkDataAndSend');
 const { createModalWindow } = require('./windowaManager');
+const path = require('path');
 // const {  createModalWindow, getModalWindow } = require('./src/utils/windowaManager');
 
 function getFormattedTimestamp() {
@@ -9,11 +10,11 @@ function getFormattedTimestamp() {
 }
 
 function presenceNotification(activityData) {
-	notifier.notify(
+	nodeNotifier.notify(
 		{
-			// appID: 'Time Tracker',
-			// title: 'Time Tracker',
+			title: 'Confirmar presencia',
 			message: 'Click aqui para confirmar tu presencia',
+			icon: path.join(__dirname, '../assets/img/tele-trabajo.png'),
 			sound: true,
 			wait: true,
 			reply: true,

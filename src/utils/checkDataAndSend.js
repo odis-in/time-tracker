@@ -1,7 +1,8 @@
+const { getSendScreenshot } = require('../odoo/getSendScreenshot');
 const { handleData } = require('./dataManager');
 
 async function checkDataAndSend(activityData) {
-  
+  const send_screenshot = await getSendScreenshot()
   try {
     console.time('checkDataAndSend');
     if (!activityData.presence || !activityData.screenshot) {
@@ -11,7 +12,7 @@ async function checkDataAndSend(activityData) {
     const dataToSend = {
       timestamp: activityData.presence.timestamp,
       presence_status: activityData.presence.status,
-      screenshot: activityData.screenshot.path,
+      screenshot: send_screenshot ? activityData.screenshot.path : null,
       latitude: activityData.latitude,
       longitude: activityData.longitude,
       ip_address: activityData.ipAddress,

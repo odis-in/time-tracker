@@ -18,6 +18,7 @@ const nodeNotifier = require('node-notifier');
 const { checkServerConnection } = require('./src/utils/checkConnection');
 const { getUserActivity } = require('./src/odoo/getUserActivity');
 const { sendDataSummary } = require('./src/odoo/sendData');
+const { getSendScreenshot } = require('./src/odoo/getSendScreenshot');
 async function getStore() {
   const { default: Store } = await import('electron-store');
   return new Store();
@@ -95,7 +96,6 @@ if (!gotTheLock) {
       {
         label: 'Salir',
         click: () => {
-          app.isQuiting = true;
           app.quit();
         }
       }
@@ -226,16 +226,16 @@ if (!gotTheLock) {
           });
           
           store.set('clients', clients);
-        } catch {
-
+        } catch(error) {
+          console.log('Error al iniciar', error);
         }
         console.timeEnd('CATCH')
         
-      firstNotification();
+      
       
       createMainWindow();
-      
-      setupCronJobs();
+      firstNotification();
+      setupCronJobs();  
         
       } else {
         createLoginWindow();
@@ -456,14 +456,7 @@ if (!gotTheLock) {
   }
   ipcMain.on('close-all-windows', async () => {
     console.time('----------------------CLOSE APP----------------------');
-
-    try {
-        await sendLastData(); 
-    } catch (error) {
-        console.error('Error enviando los últimos datos:', error);
-    }
-
-    app.isQuiting = true;
+    
     app.quit();
 
     console.timeEnd('----------------------CLOSE APP----------------------');
@@ -521,7 +514,7 @@ if (!gotTheLock) {
     console.time('------------------SENT INFO----------------------------')
     // // // const odoo_ids = await checkDataAndSend(manualData);
     // // // const odoo_id = await sendActivityUserSummary();
-
+    
     const [odoo_ids, odoo_id] = await Promise.all([  
       await checkDataAndSend(manualData),
       await sendActivityUserSummary()
@@ -744,11 +737,40 @@ if (!gotTheLock) {
     }
   });
 
-  app.on('window-all-closed', () => {
+  app.on('window-all-closed', async () => {
     if (process.platform !== 'darwin') {
-      app.quit();
+        app.quit(); 
     }
-  });
+});
+
+const sendDataBeforeQuit = async () => {
+  try {
+      await sendLastData();
+      return true;
+  } catch (error) {
+      console.error('Error enviando los últimos datos:', error);
+  }
+};
+
+app.on('before-quit', async (event) => {
+  if (app.isQuiting) {
+      return; 
+  }
+
+  event.preventDefault(); 
+  app.isQuiting = true; 
+
+  const result = await sendDataBeforeQuit(); 
+
+  if (result === true) {
+      app.quit();
+  } else {
+      app.isQuiting = false; 
+  }
+});
+
+
+
 
   //abrir app al enceder la pc
   app.setLoginItemSettings({
