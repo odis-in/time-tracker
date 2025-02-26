@@ -11,20 +11,15 @@ async function getUserActivity() {
 
         const models = xmlrpc.createClient({ url: `${url}/xmlrpc/2/object` });
 
-        // 🔹 Obtener la fecha de hoy en UTC (Formato: "YYYY-MM-DD")
-        /// obtener formato de hora local 
-        const today1test = new Date().toLocaleDateString('en-US', {
+        const today = new Date().toLocaleDateString('en-US', {
             year: 'numeric', month: '2-digit', day: '2-digit'
         });
-        console.log(`Fecha de hoy si mi local xd, ${today1test}`);
-        const today1 = new Date().toISOString().split('T')[0];
-        console.log(`Fecha de hoy:, ${today1}`); 
-        const start_date = new Date(`${today1test} 00:00:00`).toISOString();
-        const end_date = new Date(`${today1test} 23:59:59`).toISOString();
-
-
-        console.log(`Fecha de hoy nueva segura:, ${start_date}  ${end_date}`);
-        const newDay = new Date();
+        
+        
+        
+        const start_date = new Date(`${today} 00:00:00`).toISOString();
+        const end_date = new Date(`${today} 23:59:59`).toISOString();
+        
         const domain = [
             ['timestamp', '>=', start_date],  
             ['timestamp', '<=', end_date],
@@ -50,9 +45,8 @@ async function getUserActivity() {
                         return;
                     }
                     // Ordenar los resultados por el campo 'timestamp' localmente
-
                     // result.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-                    console.log('Registros de user.activity (hoy) obtenidos:', result);
+                  
                     resolve(result);
                 }
             );
@@ -71,7 +65,6 @@ async function getUserActivity() {
                         return;
                     }
                     // result.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
-                    console.log('Registros de user.activity.summary (hoy) obtenidos:', result);
                     resolve(result);
                 }
             );

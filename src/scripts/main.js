@@ -693,6 +693,11 @@ document.addEventListener('DOMContentLoaded', () => {
 		ipcRenderer.send('close-main-window');
 	});
 
+	const closeAllButton = document.getElementById('close-all');
+	closeAllButton.addEventListener('click', () => {
+		ipcRenderer.send('close-all-windows');
+	});
+
 	const usernameDiv = document.getElementById('username');
 	const profileImage = document.getElementById('profileImage');
 	if (usernameDiv) {

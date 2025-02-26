@@ -17,6 +17,7 @@ const { sendActivityUserSummary } = require('./src/utils/dataManager');
 const nodeNotifier = require('node-notifier');
 const { checkServerConnection } = require('./src/utils/checkConnection');
 const { getUserActivity } = require('./src/odoo/getUserActivity');
+const { sendDataSummary } = require('./src/odoo/sendData');
 async function getStore() {
   const { default: Store } = await import('electron-store');
   return new Store();
@@ -103,8 +104,15 @@ if (!gotTheLock) {
     tray.setToolTip('time-tracker');
     tray.setContextMenu(contextMenu);
   }
-
+  
+  function firstNotification() {
+    presenceNotification(activityData);
+    captureScreen(activityData);
+    getIpAndLocation(activityData);
+  
+  }
   async function setupCronJobs() {
+    
     const { timeNotification } = await getCredentials(['timeNotification']);
 
     if (!timeNotification) {
@@ -128,7 +136,7 @@ if (!gotTheLock) {
       getIpAndLocation(activityData)
     });
 
-    if (presenceJob || screenshotJob || addressJob) {
+    if (presenceJob && screenshotJob && addressJob) {
       console.log("Cron jobs ya están configurados");
       return;
     }
@@ -136,52 +144,31 @@ if (!gotTheLock) {
 
   async function verifyCredentialsOnStart() {
     try {
+      
       const { username, password, url, db , uid, session_id, timeNotification } = await getCredentials(['username', 'password', 'url', 'db', 'uid', 'session_id','timeNotification']);
-      console.log(username, password, url, db, uid);
+
       if (username && password) {
-        console.time('----------------------START APP----------------------')
-        
-        session = true;
-        console.log('Credenciales encontradas:', username, password, url, db, session, uid, timeNotification);
-        const online = await checkServerConnection();
-        if (online) {
-          const clients = await getClients(session_id, url);
-          console.time('-----------------GET USER ACTIVITY-----------------')
-          const userActivityData = await getUserActivity();
-          console.timeEnd('-----------------GET USER ACTIVITY-----------------')
+        console.time('CATCH')
+        try {
+          const[clients, userActivityData, tm , connection] = await Promise.all([
+            getClients(session_id, url),
+            getUserActivity(),
+            getTimeNotification(session_id, url),
+            checkServerConnection()
+          ]);
+          
+          await saveCredentials(username, password, url, tm.time_notification.toString()  , uid, session_id, db);
+          session = true;
+          console.log(`Credenciales encontradas:, username: ${username}, password: ${password}, url: ${url} , db ${db}, session ${session}, uid: ${uid}, timeNotification ${timeNotification} `);
+          
           const store = await getStore();
           const work_day = store.get(`work-day-${uid}`) || [];
           store.set(`data-user-${uid}`, userActivityData);
           const synchronizeData = store.get(`data-user-${uid}`) || { summaries: [], activities: [] };
           let data = [];
-          // // // let groupedActivities = [];
-          // // // let currentGroup = [];
-
-          // // // // Recorremos las actividades
-          // // // synchronizeData.activities.forEach((activity, index, activities) => {
-          // // //   // Si currentGroup está vacío, agregamos la primera actividad
-          // // //   if (currentGroup.length === 0) {
-          // // //     currentGroup.push(activity.id);
-          // // //   } else {
-          // // //     // Si el partner_id es el mismo que el anterior y son consecutivos, se agrupan
-          // // //     if (activity.partner_id[0] === synchronizeData.activities[index - 1].partner_id[0]) {
-          // // //       currentGroup.push(activity.id);
-          // // //     } else {
-          // // //       // Si el grupo tiene más de un elemento, lo agregamos al resultado
-          // // //       groupedActivities.push(currentGroup);
-          // // //       // Iniciamos un nuevo grupo con el registro actual
-          // // //       currentGroup = [activity.id];
-          // // //     }
-          // // //   }
-          
-          // // //   // Si es la última actividad, aseguramos de agregar el último grupo
-          // // //   if (index === activities.length - 1) {
-          // // //     groupedActivities.push(currentGroup);
-          // // //   }
-          // // // });
           let groupedActivities = [];
-          let usedActivities = new Set(); // Para evitar duplicados
-  
+          let usedActivities = new Set(); 
+          
           synchronizeData.summaries.forEach((summary, index) => {
             let summaryPartnerId = summary.partner_id[0];
             let nextSummary = synchronizeData.summaries[index + 1];
@@ -189,7 +176,7 @@ if (!gotTheLock) {
             let activitiesForSummary = synchronizeData.activities
               .filter(activity => 
                 activity.partner_id[0] === summaryPartnerId && 
-                !usedActivities.has(activity.id) // Evitamos reusar actividades
+                !usedActivities.has(activity.id) 
               )
               .map(activity => {
                 usedActivities.add(activity.id);
@@ -199,7 +186,7 @@ if (!gotTheLock) {
             // Si el siguiente summary tiene el mismo partner_id, separamos correctamente
             if (nextSummary && nextSummary.partner_id[0] === summaryPartnerId) {
               groupedActivities.push([activitiesForSummary[0]]); // Solo el primer elemento en un nuevo grupo
-              activitiesForSummary.shift(); // Eliminamos el primero del array original
+              activitiesForSummary.shift(); 
             }
   
             // Agregamos el resto de actividades (si quedan)
@@ -207,7 +194,7 @@ if (!gotTheLock) {
               groupedActivities.push(activitiesForSummary);
             }
           });
-
+  
           synchronizeData.summaries.forEach((element, index) => {
             
             const activity = synchronizeData.activities.find(rec => 
@@ -226,22 +213,30 @@ if (!gotTheLock) {
               odoo_id: element.id,
               odoo_ids: activitiesForSummary
             };
-
+  
             data.push(data_work_day);
           });
+  
+          
           data.sort((a, b) => a.startWork.localeCompare(b.startWork))
           store.set(`work-day-${uid}`, data);
-
+          
           BrowserWindow.getAllWindows().forEach(win => {
             win.webContents.send('work-day-updated', work_day);
           });
           
           store.set('clients', clients);
-        } else {
+        } catch {
+
         }
-        createMainWindow();
-        setupCronJobs();
-        console.timeEnd('----------------------START APP----------------------')
+        console.timeEnd('CATCH')
+        
+      firstNotification();
+      
+      createMainWindow();
+      
+      setupCronJobs();
+        
       } else {
         createLoginWindow();
         session = false;
@@ -281,6 +276,7 @@ if (!gotTheLock) {
 
         await saveCredentials(username, password, url, tm.time_notification.toString() , uid.toString(), setCookieHeader.toString(), db);
         const userActivityData = await getUserActivity();
+        firstNotification();
         console.timeEnd('-----------------GET USER ACTIVITY-----------------')
         const work_day = store.get(`work-day-${uid}`) || [];
         console.log('-----------------USER ODOO DATA-----------------')
@@ -431,6 +427,46 @@ if (!gotTheLock) {
     const loginWindow = getLoginWindow();
     if (mainWindow) mainWindow.close();
     if (loginWindow) loginWindow.close();
+  });
+
+
+  async function sendLastData() {
+    //obtener datos de la ultima actividad:
+    const store = await getStore();
+    const { uid } = await getCredentials(['uid']);
+    const work_day = store.get(`work-day-${uid}`) || [];
+    const lastItem = work_day[work_day.length - 1];
+    const dateLocal = new Date().toLocaleDateString('en-US');
+    console.log(dateLocal);
+    const endLocalWork = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+    console.log(endLocalWork);
+    const completeDate = new Date(`${dateLocal} ${endLocalWork}`).toISOString().replace('T',' ').substring(0, 19);
+    const completeDateStartWork = new Date(`${dateLocal} ${lastItem.startWork}`).toISOString().replace('T',' ').substring(0, 19);
+    
+    //data para el resumen:
+    const lastData = [{
+      user_id: parseInt(uid),
+      partner_id: lastItem.client.id,
+      start_time: completeDateStartWork,
+      end_time: completeDate,
+      total_hours: calculateTimeDifference(lastItem.startWork, endLocalWork),
+      odoo_id: lastItem.odoo_id
+    }];
+    await sendDataSummary('user.activity.summary', lastData);
+  }
+  ipcMain.on('close-all-windows', async () => {
+    console.time('----------------------CLOSE APP----------------------');
+
+    try {
+        await sendLastData(); 
+    } catch (error) {
+        console.error('Error enviando los últimos datos:', error);
+    }
+
+    app.isQuiting = true;
+    app.quit();
+
+    console.timeEnd('----------------------CLOSE APP----------------------');
   });
 
   ipcMain.on('close-modal-window', () => {

@@ -9,6 +9,23 @@
   </head>
   <body>
     <div class="app-container-index">
+      <div class="window-controls">
+        <svg
+          id="close-all"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke-width="1.5"
+          stroke="currentColor"
+          class="size-6"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M6 18 18 6M6 6l12 12"
+          />
+        </svg>
+      </div>
       <!-- <div id="drag-area"></div> -->
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-4">
@@ -32,7 +49,7 @@
       <div class="separator"></div>
       <!-- Nueva tabla de trabajo del día -->
       <div class="work-day-table">
-        <h2 class="text-lg font-medium mb-2 element">Lista de trabajo del día  v2</h2>
+        <h2 class="text-lg font-medium mb-2 element">Lista de trabajo del día</h2>
         <div class="flex justify-between items-center mb-4">
         
         <button class="btn-add" id="btn-add" onclick="addRow(this)" value="create">Crear Nuevo</button>
