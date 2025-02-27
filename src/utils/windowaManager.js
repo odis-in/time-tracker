@@ -139,7 +139,7 @@ function createModalWindow() {
     modal: true,
     // show: false,
     width: 415,
-    height: 340,
+    height: 440,
     // resizable: false,
     webPreferences: {
       preload: path.join(__dirname, '../preload.js'),

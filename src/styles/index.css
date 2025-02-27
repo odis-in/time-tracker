@@ -345,6 +345,12 @@ tr:nth-child(even) {
   text-align: center;
 }
 
+.btn-pause {
+  width: 100px;
+  margin: 5px 0px;
+  text-align: center;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }

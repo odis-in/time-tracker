@@ -18,7 +18,7 @@ const nodeNotifier = require('node-notifier');
 const { checkServerConnection } = require('./src/utils/checkConnection');
 const { getUserActivity } = require('./src/odoo/getUserActivity');
 const { sendDataSummary } = require('./src/odoo/sendData');
-const { getSendScreenshot } = require('./src/odoo/getSendScreenshot');
+const { getDataPause } = require('./src/odoo/getDataPuase');
 async function getStore() {
   const { default: Store } = await import('electron-store');
   return new Store();
@@ -39,7 +39,9 @@ const activityData = {
   longitude: null,
   ipAddress: null,
   partner_id: null,
-  description: null
+  description: null,
+  task_id: null,
+  pause_id: null,
 };
 
 const gotTheLock = app.requestSingleInstanceLock();
@@ -109,7 +111,20 @@ if (!gotTheLock) {
     presenceNotification(activityData);
     captureScreen(activityData);
     getIpAndLocation(activityData);
-  
+  }
+
+  function pauseNotification() {
+    captureScreen(activityData);
+    getIpAndLocation(activityData);
+    const timestamp = new Date().toISOString().replace('T',' ').substring(0, 19);
+    activityData.presence = { status: 'active', timestamp: timestamp }
+  }
+
+  function resumeNotification() {
+    captureScreen(activityData);
+    getIpAndLocation(activityData);
+    const timestamp = new Date().toISOString().replace('T',' ').substring(0, 19);
+    activityData.presence = { status: 'active', timestamp: timestamp }
   }
   async function setupCronJobs() {
     
@@ -150,11 +165,12 @@ if (!gotTheLock) {
       if (username && password) {
         console.time('CATCH')
         try {
-          const[clients, userActivityData, tm , connection] = await Promise.all([
+          const[clients, userActivityData, tm , connection, pausas] = await Promise.all([
             getClients(session_id, url),
             getUserActivity(),
             getTimeNotification(session_id, url),
-            checkServerConnection()
+            checkServerConnection(),
+            getDataPause()
           ]);
           
           await saveCredentials(username, password, url, tm.time_notification.toString()  , uid, session_id, db);
@@ -226,6 +242,7 @@ if (!gotTheLock) {
           });
           
           store.set('clients', clients);
+          store.set('pauses', pausas);
         } catch(error) {
           console.log('Error al iniciar', error);
         }
@@ -266,7 +283,7 @@ if (!gotTheLock) {
       try {
         
         const { setCookieHeader, uid, imageBase64 , name } = await authenticateUser(username, password, url, db);
-        const [clients ,tm, store] = await Promise.all([
+        const [clients ,tm ,store] = await Promise.all([
           getClients(setCookieHeader, url),
           getTimeNotification(setCookieHeader, url),
           getStore()
@@ -275,6 +292,7 @@ if (!gotTheLock) {
         console.log('UID:', uid);
 
         await saveCredentials(username, password, url, tm.time_notification.toString() , uid.toString(), setCookieHeader.toString(), db);
+        const pauses = await getDataPause()
         const userActivityData = await getUserActivity();
         firstNotification();
         console.timeEnd('-----------------GET USER ACTIVITY-----------------')
@@ -369,6 +387,7 @@ if (!gotTheLock) {
         });
         console.log('tm',tm);
         store.set('clients', clients);
+        store.set('pauses', pauses);
         return {uid , name , imageBase64 };
         
       } catch (error) {
@@ -467,6 +486,20 @@ if (!gotTheLock) {
     if (modalWindows) modalWindows.close();
   });
 
+  ipcMain.on('pause-timer', () => {
+    stopCronJobs();
+    pauseNotification();
+    createModalWindow();
+    getModalWindow().webContents.send('timer-event');
+  })
+  
+  ipcMain.on('resume-timer', () => {
+    setupCronJobs();
+    resumeNotification();
+    createModalWindow();
+    getModalWindow().webContents.send('timer-event');
+  });
+
   ipcMain.on('logout', async () => {
     try {
       await clearCredentials();
@@ -561,16 +594,18 @@ if (!gotTheLock) {
     
   });
   //ENVIAR INFO DE ACTIVIDAD
-  ipcMain.on('send-data', async (event, client, description) => {
+  ipcMain.on('send-data', async (event, client, description, task, pause) => {
     try {
       const store = await getStore();
       const modalWindows = createModalWindow();
       modalWindows.show();
-      console.log('Datos recibidos del formulario:', { client, description });
+      console.log('Datos recibidos del formulario:', { client, description, task , pause });
       const { uid } = await getCredentials(['uid']);
       // Asignación de datos a `activityData`
       activityData.partner_id = client;
       activityData.description = description;
+      activityData.task_id = task;
+      activityData.pause_id = pause;
   
       const client_data = store.get('clients').find(rec => rec.id == client);
       if (client_data) {
@@ -639,7 +674,7 @@ if (!gotTheLock) {
       // const odoo_id = await checkDataAndSend(activityData);
       console.time("Total Execution");
 
- 
+
       const [activityDataLog, summaryDataLog] = await Promise.all([
         checkDataAndSend(activityData),
         sendActivityUserSummary(),
@@ -709,10 +744,11 @@ if (!gotTheLock) {
     return work_day;
   });
 
-  ipcMain.handle('get-clients', async (event) => {
+  ipcMain.handle('get-clients-and-pauses', async (event) => {
     const store = await getStore();
     const clients = store.get('clients') || [];
-    return clients;
+    const pauses = store.get('pauses') || [];
+    return {clients, pauses};
   });
 
   ipcMain.on('delete_data', async () => {

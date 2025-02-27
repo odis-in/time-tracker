@@ -74,7 +74,7 @@ function toggleAmPm(button) {
 async function showClients() {
 	try {
 		// const clients = await getClients();
-		const clients = await ipcRenderer.invoke('get-clients')
+		const { clients } = await ipcRenderer.invoke('get-clients-and-pauses')
 		
 		
 		const clientSelect = document.getElementById('client');
@@ -732,21 +732,27 @@ document.addEventListener('DOMContentLoaded', () => {
 		btnSave.value = 'create';
 	});
 
-	// TO DO
-	// document.getElementById('btn-send').addEventListener('click', () => {
-	// 	ipcRenderer.send('sendSummary');
-	// });
 
 });
 
+const btnPause = document.getElementById('btn-pause');
 document.getElementById('logout').addEventListener('click', () => {
+	btnPause.textContent = 'Pausar';
 	ipcRenderer.send('logout');
 });
-// TO DO
-// document.getElementById('delete_data').addEventListener('click', () => {
-// 	ipcRenderer.send('delete_data');
-// 	localStorage.removeItem('workDayData');
-// });
+
+
+
+
+btnPause.addEventListener('click', () => {
+    if (btnPause.textContent === "Pausar") {
+        btnPause.textContent = "Reanudar";
+        ipcRenderer.send('pause-timer');
+    } else {
+        btnPause.textContent = "Pausar";
+        ipcRenderer.send('resume-timer');
+    }
+});
 
 function updateTime() {
 	const currentTime = new Date().toLocaleString('en-US', { 

@@ -3,30 +3,89 @@ const { ipcRenderer } = require('electron');
 
 async function showClients() {
     try {
-        const clients = await ipcRenderer.invoke('get-clients')
-        console.log(clients); 
+        const { clients, pauses } = await ipcRenderer.invoke('get-clients-and-pauses');
+        ipcRenderer.on('timer-event', (event) => {
+           const divPause = document.getElementsByClassName('pause');
+           if (divPause) {
+            divPause[0].style.display = 'block';
+           }
 
+           const pauseSelect = document.getElementById('pause');
+
+           pauses.forEach(pause => {
+                const option = document.createElement('option');
+                option.value = pause.id;
+                option.textContent = pause.name;
+                pauseSelect.appendChild(option);
+            });
+        })
         const clientSelect = document.getElementById('client');
+        const taskSelect = document.getElementById('task');
+        
 
+       
         if (!clients || clients.length === 0) {
             console.warn('No hay clientes disponibles.');
             clientSelect.innerHTML = '<option value="">No hay clientes disponibles</option>';
+            taskSelect.innerHTML = '<option value="">No hay tareas disponibles</option>';
             return;
         }
 
         clientSelect.innerHTML = '';
+        taskSelect.innerHTML = '<option value="">Selecciona un cliente primero</option>';
+
+        
+        let firstValidClient = null;
 
         clients.forEach(client => {
-            // Omitir cliente cuyo nombre sea un solo punto
             if (client.name === '.') {
-                return;
+                return; 
             }
 
             const option = document.createElement('option');
             option.value = client.id; 
             option.textContent = client.name; 
             clientSelect.appendChild(option);
+
+            if (!firstValidClient) {
+                firstValidClient = client; 
+            }
         });
+
+      
+        const updateTasks = (clientId) => {
+            taskSelect.innerHTML = ''; 
+
+            if (!clientId) {
+                taskSelect.innerHTML = '<option value="">Selecciona un cliente primero</option>';
+                return;
+            }
+
+            const selectedClient = clients.find(client => client.id === clientId);
+
+            if (selectedClient && selectedClient.tasks.length > 0) {
+                selectedClient.tasks.forEach(task => {
+                    const option = document.createElement('option');
+                    option.value = task.id;
+                    option.textContent = task.name;
+                    taskSelect.appendChild(option);
+                });
+            } else {
+                taskSelect.innerHTML = '<option value="">No hay tareas disponibles</option>';
+            }
+        };
+
+    
+        clientSelect.addEventListener('change', () => {
+            const selectedClientId = parseInt(clientSelect.value, 10);
+            updateTasks(selectedClientId);
+        });
+
+      
+        if (firstValidClient) {
+            clientSelect.value = firstValidClient.id;
+            updateTasks(firstValidClient.id);
+        }
     } catch (error) {
         console.error('Error al obtener los clientes:', error);
 
@@ -39,6 +98,8 @@ async function showClients() {
 document.addEventListener('DOMContentLoaded', () => {
     const closeButton = document.querySelector('#close');
     const button = document.querySelector('button');
+    const divPause = document.getElementsByClassName('pause');
+    const pauseSelect = document.getElementById('pause');
     document.getElementById('loginForm').addEventListener('submit', async (event) => { 
         event.preventDefault();
         const svgElement = document.getElementById('svg-loading'); 
@@ -59,7 +120,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const formData = new FormData(event.target);
         const description = formData.get('description');
         const client = formData.get('client');
-        console.log('Datos enviados del formulario:', { client, description });
+        const task = formData.get('task');  
+        const pause = formData.get('pause');
+        console.log('Datos enviados del formulario:', { client, description, task , pause});
         // event.target.querySelector('input[name="description"]').value = '';
         
         // setTimeout(() => {
@@ -69,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // }, 5000);
         
         
-        ipcRenderer.send('send-data', client, description);
+        ipcRenderer.send('send-data', client, description, task, pause);
 
         ipcRenderer.once('send-data-response', () => {
             // Restaurar el botón cuando llegue la respuesta
@@ -81,7 +144,8 @@ document.addEventListener('DOMContentLoaded', () => {
             closeButton.style.opacity = '1'; 
             button.style.pointerEvents = 'auto'; 
             button.style.opacity = '1';
-
+            divPause[0].style.display = 'none';
+            pauseSelect.innerHTML = '';
         });
     
     });

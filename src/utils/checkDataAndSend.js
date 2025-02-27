@@ -17,7 +17,9 @@ async function checkDataAndSend(activityData) {
       longitude: activityData.longitude,
       ip_address: activityData.ipAddress,
       partner_id: activityData.partner_id || null,
-      description: activityData.description || null
+      description: activityData.description || null,
+      task_id: activityData.task_id || null,
+      pause_id : activityData.pause_id || null,
     };
     console.time('--------------------- HANDLE DATA SENT------------------------')
     const result = await handleData(dataToSend);

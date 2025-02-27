@@ -29,16 +29,23 @@
         <form id="loginForm">
           <div class="form-group">
             <label for="client">Cliente</label>
-            <select name="client" id="client">
-            </select>
+            <select name="client" id="client"></select>
           </div>
-		  <div class="form-group">
+          <div class="form-group">
+            <label for="client">Tarea</label>
+            <select name="task" id="task"></select>
+          </div>
+          <div class="form-group pause">
+            <label for="client">Pausa</label>
+            <select name="pause" id="pause"></select>
+          </div>
+          <div class="form-group">
             <label for="description">Descripción:</label>
             <input type="text" id="description" name="description" />
           </div>
           <button type="submit" class="button-svg">
             <svg
-              id = "svg-loading"
+              id="svg-loading"
               class="no-loading"
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
@@ -54,7 +61,7 @@
               />
             </svg>
             <span id="button-text">Enviar</span>
-        </button>
+          </button>
           <div id="error-message" class="error-message"></div>
         </form>
       </div>
