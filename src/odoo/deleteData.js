@@ -8,8 +8,13 @@ async function deleteData(odoo_ids, odoo_id) {
         if (!username || !password || !uid || !url) {
             throw new Error('Credenciales no encontradas. Por favor, autentique nuevamente.');
         }
-
-        const models = xmlrpc.createClient({ url: `${url}/xmlrpc/2/object` });
+        let models
+        if (url.includes('https://')) {
+            models = xmlrpc.createSecureClient({ url: `${url}/xmlrpc/2/object` });
+        } else {
+            models = xmlrpc.createClient({ url: `${url}/xmlrpc/2/object` });
+        }
+     
         console.log(odoo_ids);
 
         await new Promise((resolve, reject) => {

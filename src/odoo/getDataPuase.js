@@ -9,10 +9,15 @@ async function getDataPause() {
             throw new Error('Credenciales no encontradas. Por favor, autentique nuevamente.');
         }
 
-        
-        const models = xmlrpc.createClient({ url: `${url}/xmlrpc/2/object` });
 
-        
+        let models
+        if (url.includes('https://')) {
+            models = xmlrpc.createSecureClient({ url: `${url}/xmlrpc/2/object` });
+        } else {
+            models = xmlrpc.createClient({ url: `${url}/xmlrpc/2/object` });
+        }
+
+
         const dataPuase = await new Promise((resolve, reject) => {
             models.methodCall(
                 'execute_kw',
@@ -23,7 +28,7 @@ async function getDataPause() {
                         reject(err);
                         return;
                     }
-					
+
                     resolve(result);
                 }
             );

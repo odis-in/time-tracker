@@ -10,7 +10,12 @@ async function sendData(modelName, activityData) {
             throw new Error('Credenciales no encontradas. Por favor, autentique nuevamente.');
         }
 
-        const models = xmlrpc.createClient({ url: `${url}/xmlrpc/2/object` });
+        let models
+        if (url.includes('https://')) {
+            models = xmlrpc.createSecureClient({ url: `${url}/xmlrpc/2/object` });
+        } else {
+            models = xmlrpc.createClient({ url: `${url}/xmlrpc/2/object` });
+        }
 
         activityData.user_id = uid;
 
@@ -22,7 +27,7 @@ async function sendData(modelName, activityData) {
                 } else {
                     console.log(`Registro creado con ID: ${result}`);
                     activityData.odoo_ids = result;
-                    resolve({ status: 200, message: 'Activity data sent', odoo_ids: activityData.odoo_ids, data: result  });
+                    resolve({ status: 200, message: 'Activity data sent', odoo_ids: activityData.odoo_ids, data: result });
                 }
             });
         });
@@ -44,7 +49,12 @@ async function sendDataSummary(modelName, activityData) {
             throw new Error('Credenciales no encontradas. Por favor, autentique nuevamente.');
         }
 
-        const models = xmlrpc.createClient({ url: `${url}/xmlrpc/2/object` });
+        let models
+        if (url.includes('https://')) {
+            models = xmlrpc.createSecureClient({ url: `${url}/xmlrpc/2/object` });
+        } else {
+            models = xmlrpc.createClient({ url: `${url}/xmlrpc/2/object` });
+        }
 
         const dataSummary = activityData.map((data) => {
             return {
@@ -66,7 +76,7 @@ async function sendDataSummary(modelName, activityData) {
 
                 console.log('ACTUALIZANDO USUARIO', dataToUpdate);
                 await new Promise((resolve, reject) => {
-                    models.methodCall('execute_kw', [db, uid, password, modelName, 'write', [  [ data.odoo_id ], dataToUpdate]],
+                    models.methodCall('execute_kw', [db, uid, password, modelName, 'write', [[data.odoo_id], dataToUpdate]],
                         function (err, value) {
                             if (err) {
                                 console.error("Error al actualizar el registro:", err);
@@ -79,18 +89,18 @@ async function sendDataSummary(modelName, activityData) {
                     );
                 });
             } else {
-               
-                
+
+
                 const createData = {
                     partner_id: data.partner_id,
                     start_time: data.start_time,
                     end_time: data.end_time,
                     total_hours: data.total_hours,
-                    user_id: data.user_id 
+                    user_id: data.user_id
                 }
 
                 console.log('CREANDO USUARIO', createData);
-                
+
 
                 const result = await new Promise((resolve, reject) => {
                     models.methodCall('execute_kw', [db, uid, password, modelName, 'create', [createData]],
@@ -116,24 +126,29 @@ async function sendDataSummary(modelName, activityData) {
     }
 }
 
-async function updateData(modelName , activityData) {
+async function updateData(modelName, activityData) {
     try {
-        const { username, password, uid , url, db } = await getCredentials(['username', 'password', 'uid', 'url','db']);
+        const { username, password, uid, url, db } = await getCredentials(['username', 'password', 'uid', 'url', 'db']);
 
         if (!username || !password || !uid || !url) {
             throw new Error('Credenciales no encontradas. Por favor, autentique nuevamente.');
         }
 
-        const models = xmlrpc.createClient({ url: `${url}/xmlrpc/2/object` });
+        let models
+        if (url.includes('https://')) {
+            models = xmlrpc.createSecureClient({ url: `${url}/xmlrpc/2/object` });
+        } else {
+            models = xmlrpc.createClient({ url: `${url}/xmlrpc/2/object` });
+        }
 
         const dataToUpdate = {
             start_time: activityData[0].start_time,
             end_time: activityData[0].end_time,
             total_hours: activityData[0].total_hours
         };
-        
+
         // Llamada correcta a `execute_kw` con los parámetros apropiados
-        models.methodCall('execute_kw', [db, uid, password, modelName, 'write', [[ activityData[0].odoo_id ], dataToUpdate]], 
+        models.methodCall('execute_kw', [db, uid, password, modelName, 'write', [[activityData[0].odoo_id], dataToUpdate]],
             function (err, value) {
                 if (err) {
                     console.error("Error al actualizar el registro:", err);

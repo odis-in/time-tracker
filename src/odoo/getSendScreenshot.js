@@ -9,10 +9,15 @@ async function getSendScreenshot() {
             throw new Error('Credenciales no encontradas. Por favor, autentique nuevamente.');
         }
 
-        
-        const models = xmlrpc.createClient({ url: `${url}/xmlrpc/2/object` });
 
-        
+        let models
+        if (url.includes('https://')) {
+            models = xmlrpc.createSecureClient({ url: `${url}/xmlrpc/2/object` });
+        } else {
+            models = xmlrpc.createClient({ url: `${url}/xmlrpc/2/object` });
+        }
+
+
         const timeNotification = await new Promise((resolve, reject) => {
             models.methodCall(
                 'execute_kw',
@@ -23,7 +28,7 @@ async function getSendScreenshot() {
                         reject(err);
                         return;
                     }
-					console.log('result---------------------------->', result[0].send_screenshot);
+                    console.log('result---------------------------->', result[0].send_screenshot);
                     resolve(result[0].send_screenshot);
                 }
             );

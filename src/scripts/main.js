@@ -609,10 +609,12 @@ async function renderWorkDayData() {
 			<td class="description">${item.description}</td>
 			<td class="time-work">${item.timeWorked}</td>
 			<td style="display:flex; gap:5px;">
-				<button class="edit-btn" onclick="editRow(this)">${editIcon}</button>
-				<button class="cancel-btn" onclick="deleteRow(this)">${deleteIcon}</button>
+				<button class="edit-btn" style='visibility: hidden'; onclick="editRow(this)">${editIcon}</button>
+				<button class="cancel-btn" style='visibility: hidden'; onclick="deleteRow(this)">${deleteIcon}</button>
 			</td>
 			`;
+			// // <button class="edit-btn" onclick="editRow(this)">${editIcon}</button>
+			// // 	<button class="cancel-btn" onclick="deleteRow(this)">${deleteIcon}</button>
 			tbody.appendChild(row);
 
 			totalMinutes += convertTimeToMinutes(item.timeWorked);

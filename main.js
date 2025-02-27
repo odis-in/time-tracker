@@ -454,6 +454,9 @@ if (!gotTheLock) {
     const store = await getStore();
     const { uid } = await getCredentials(['uid']);
     const work_day = store.get(`work-day-${uid}`) || [];
+    if (work_day.length === 0) {
+      return;
+    }
     const lastItem = work_day[work_day.length - 1];
     const dateLocal = new Date().toLocaleDateString('en-US');
     console.log(dateLocal);

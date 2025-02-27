@@ -9,35 +9,40 @@ async function getUserActivity() {
             throw new Error('Credenciales no encontradas. Por favor, autentique nuevamente.');
         }
 
-        const models = xmlrpc.createClient({ url: `${url}/xmlrpc/2/object` });
+        let models
+        if (url.includes('https://')) {
+            models = xmlrpc.createSecureClient({ url: `${url}/xmlrpc/2/object` });
+        } else {
+            models = xmlrpc.createClient({ url: `${url}/xmlrpc/2/object` });
+        }
 
         const today = new Date().toLocaleDateString('en-US', {
             year: 'numeric', month: '2-digit', day: '2-digit'
         });
-        
-        
-        
+
+
+
         const start_date = new Date(`${today} 00:00:00`).toISOString();
         const end_date = new Date(`${today} 23:59:59`).toISOString();
-        
+
         const domain = [
-            ['timestamp', '>=', start_date],  
+            ['timestamp', '>=', start_date],
             ['timestamp', '<=', end_date],
-            ['user_id', '=' , parseInt(uid)],
+            ['user_id', '=', parseInt(uid)],
             ['presence_status', '=', 'active']
         ];
-        
+
         const domainSummary = [
             ['start_time', '>=', start_date],
             ['end_time', '<=', end_date],
-            ['user_id', '=' , parseInt(uid)]
+            ['user_id', '=', parseInt(uid)]
         ];
 
         // Obtener user.activity solo del día actual
         const activities = await new Promise((resolve, reject) => {
             models.methodCall(
                 'execute_kw',
-                [db, uid, password, 'user.activity', 'search_read', [domain, ['id', 'user_id', 'timestamp', 'partner_id','description']]],
+                [db, uid, password, 'user.activity', 'search_read', [domain, ['id', 'user_id', 'timestamp', 'partner_id', 'description']]],
                 (err, result) => {
                     if (err) {
                         console.error('Error al obtener user.activity en Odoo:', err);
@@ -46,12 +51,12 @@ async function getUserActivity() {
                     }
                     // Ordenar los resultados por el campo 'timestamp' localmente
                     // result.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-                  
+
                     resolve(result);
                 }
             );
         });
-        
+
 
         // Obtener user.activity.summary solo del día actual
         const summaries = await new Promise((resolve, reject) => {
