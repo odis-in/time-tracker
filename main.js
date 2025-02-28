@@ -414,7 +414,7 @@ if (!gotTheLock) {
     console.log(`Update downloaded. Current version ${app.getVersion()}`);
     nodeNotifier.notify({
       title: 'Actualización descargada',
-      message: 'La actualización ha sido descargada y está lista para ser instalada',
+      message: 'La actualización ha sido descargada y está lista para ser instalada, cierra la aplicación para instalarla',
       icon: path.join(__dirname, './src/assets/img/tele-trabajo.png'),
       sound: true,
       wait: true
