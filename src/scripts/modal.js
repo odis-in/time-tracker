@@ -1,5 +1,4 @@
-const { getClients } = require("../odoo/getClients");
-const { ipcRenderer } = require('electron');
+const { ipcRenderer, contextBridge } = require('electron');
 
 
 ipcRenderer.on('timer-event', (event) => {
@@ -12,8 +11,7 @@ ipcRenderer.on('timer-event', (event) => {
     }
 
     const pauseSelect = document.getElementById('pause');
-    pauseSelect.innerHTML = ''; // Limpiar opciones previas
-
+    
     ipcRenderer.invoke('get-clients-and-pauses').then(({ pauses }) => {
         pauses.forEach(pause => {
             const option = document.createElement('option');
@@ -44,13 +42,27 @@ async function showClients() {
 
         let firstValidClient = null;
 
+        // Obtener el último cliente de localStorage
+        const data = JSON.parse(localStorage.getItem('workDayData')) || [];
+        const lastClient = data.length > 0 ? data[data.length - 1].client : null;
+
+        // Si hay un cliente guardado, agregarlo como opción seleccionada
+        if (lastClient) {
+            const lastClientOption = document.createElement('option');
+            lastClientOption.value = String(lastClient.id); // Convertir a string para evitar errores
+            lastClientOption.textContent = lastClient.name;
+            lastClientOption.selected = true;
+            clientSelect.appendChild(lastClientOption);
+        }
+
+        // Agregar clientes a la lista
         clients.forEach(client => {
-            if (client.name === '.') {
+            if (client.name === '.' || (lastClient && client.id === lastClient.id)) {
                 return;
             }
 
             const option = document.createElement('option');
-            option.value = client.id;
+            option.value = String(client.id); 
             option.textContent = client.name;
             clientSelect.appendChild(option);
 
@@ -59,6 +71,7 @@ async function showClients() {
             }
         });
 
+        
         const updateTasks = (clientId) => {
             taskSelect.innerHTML = '';
 
@@ -67,12 +80,12 @@ async function showClients() {
                 return;
             }
 
-            const selectedClient = clients.find(client => client.id === clientId);
+            const selectedClient = clients.find(client => String(client.id) === String(clientId));
 
             if (selectedClient && selectedClient.tasks.length > 0) {
                 selectedClient.tasks.forEach(task => {
                     const option = document.createElement('option');
-                    option.value = task.id;
+                    option.value = String(task.id);
                     option.textContent = task.name;
                     taskSelect.appendChild(option);
                 });
@@ -81,21 +94,26 @@ async function showClients() {
             }
         };
 
+        // Evento para cambiar las tareas cuando se seleccione otro cliente
         clientSelect.addEventListener('change', () => {
-            const selectedClientId = parseInt(clientSelect.value, 10);
-            updateTasks(selectedClientId);
+            updateTasks(clientSelect.value);
         });
 
-        if (firstValidClient) {
-            clientSelect.value = firstValidClient.id;
+        // Seleccionar correctamente el cliente si hay uno guardado
+        if (lastClient) {
+            clientSelect.value = String(lastClient.id);
+            updateTasks(lastClient.id);
+        } else if (firstValidClient) {
+            clientSelect.value = String(firstValidClient.id);
             updateTasks(firstValidClient.id);
         }
+
     } catch (error) {
         console.error('Error al obtener los clientes:', error);
-        const clientSelect = document.getElementById('client');
-        clientSelect.innerHTML = '<option value="">Error al cargar los clientes</option>';
+        document.getElementById('client').innerHTML = '<option value="">Error al cargar los clientes</option>';
     }
 }
+
 
 
 

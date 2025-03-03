@@ -1,4 +1,4 @@
-const { app, Tray, Menu, ipcMain, BrowserWindow, net } = require('electron');
+const { app, Tray, Menu, ipcMain, BrowserWindow, net , powerMonitor } = require('electron');
 
 const { autoUpdater, AppUpdater } = require("electron-updater");
 const { authenticateUser } = require('./src/odoo/authenticateUser');
@@ -274,10 +274,17 @@ if (!gotTheLock) {
   }
 
   app.whenReady().then(() => {
-    
+
+    powerMonitor.on('suspend', async () => {
+      const store = await getStore();
+      store.set('suspend', 'suspend');
+      console.log('La PC entró en suspensión.');
+      console.log(powerMonitor.getSystemIdleState(1));
+      sendLastData();
+    });
     verifyCredentialsOnStart();
     createTray();
-    
+    console.log('app iniciado')
     autoUpdater.checkForUpdates();
     ipcMain.handle('login', async (event, username, password, url, db) => {
       try {
@@ -302,32 +309,6 @@ if (!gotTheLock) {
         store.set(`data-user-${uid}`, userActivityData);
         const synchronizeData = store.get(`data-user-${uid}`) || { summaries: [], activities: [] };
         let data = [];
-        // // // let groupedActivities = [];
-        // // // let currentGroup = [];
-
-        // Recorremos las actividades
-        // // // synchronizeData.activities.forEach((activity, index, activities) => {
-        // // //   // Si currentGroup está vacío, agregamos la primera actividad
-        // // //   if (currentGroup.length === 0) {
-        // // //     currentGroup.push(activity.id);
-        // // //   } else {
-        // // //     // Si el partner_id es el mismo que el anterior y son consecutivos, se agrupan
-        // // //     if (activity.partner_id[0] === synchronizeData.activities[index - 1].partner_id[0]) {
-        // // //       currentGroup.push(activity.id);
-        // // //     } else {
-        // // //       // Si el grupo tiene más de un elemento, lo agregamos al resultado
-        // // //       groupedActivities.push(currentGroup);
-        // // //       // Iniciamos un nuevo grupo con el registro actual
-        // // //       currentGroup = [activity.id];
-        // // //     }
-        // // //   }
-        
-        // // //   // Si es la última actividad, aseguramos de agregar el último grupo
-        // // //   if (index === activities.length - 1) {
-        // // //     groupedActivities.push(currentGroup);
-        // // //   }
-        // // // });
-
 
         let groupedActivities = [];
         let usedActivities = new Set(); // Para evitar duplicados
@@ -444,8 +425,13 @@ if (!gotTheLock) {
   ipcMain.on('close-main-window', () => {
     const mainWindow = getMainWindow();
     const loginWindow = getLoginWindow();
-    if (mainWindow) mainWindow.close();
-    if (loginWindow) loginWindow.close();
+    if (mainWindow && session) mainWindow.close();
+    if (loginWindow && !session) {
+      console.log('Cerrando ventana de inicio');
+      app.isQuiting = true;
+      app.quit();
+      tray.destroy();
+    }
   });
 
 
@@ -455,6 +441,7 @@ if (!gotTheLock) {
     const { uid } = await getCredentials(['uid']);
     const work_day = store.get(`work-day-${uid}`) || [];
     if (work_day.length === 0) {
+      console.log('no hay datos para enviar')
       return;
     }
     const lastItem = work_day[work_day.length - 1];

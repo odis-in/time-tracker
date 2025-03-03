@@ -47,7 +47,7 @@
     }
   },
   "devDependencies": {
-    "electron": "^32.0.1",
+    "electron": "^34.3.0",
     "electron-builder": "^24.13.3",
     "request-promise": "*"
   },
