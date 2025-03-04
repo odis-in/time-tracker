@@ -36,7 +36,7 @@ function convertDate(hour) {
 }
 
 function toCorrectISO(dateInput) {
-//    console.log('dateInput', dateInput);
+
     const localDate = new Date(dateInput);
 
     if (isNaN(localDate)) {

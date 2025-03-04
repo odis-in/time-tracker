@@ -27,13 +27,11 @@ async function clearCredentials() {
     for (const key of keys) {
         try {
             await keytar.deletePassword(serviceName, key);
-            console.log(`Eliminado ${key} de ${serviceName}`);
+     
         } catch (error) {
             console.error(`Error al eliminar ${key}: ${error}`);
         }
     }
-
-    console.log('Todas las credenciales han sido eliminadas.');
 }
 
 module.exports = { saveCredentials, getCredentials, clearCredentials };

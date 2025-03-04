@@ -1,17 +1,17 @@
 const { ipcRenderer, contextBridge } = require('electron');
-
-
-ipcRenderer.on('timer-event', (event) => {
+let timerEventData = null;
+ipcRenderer.on('timer-event', async (event, data) => {
+    console.log('timer-event', data);
+    timerEventData = data;
     const divPause = document.getElementsByClassName('pause');
-    const closeButton = document.querySelector('#close');
 
     if (divPause.length > 0) {
         divPause[0].style.display = 'block';
-        closeButton.style.display = 'none';
+        // closeButton.style.display = 'none';
     }
 
     const pauseSelect = document.getElementById('pause');
-    
+
     ipcRenderer.invoke('get-clients-and-pauses').then(({ pauses }) => {
         pauses.forEach(pause => {
             const option = document.createElement('option');
@@ -62,7 +62,7 @@ async function showClients() {
             }
 
             const option = document.createElement('option');
-            option.value = String(client.id); 
+            option.value = String(client.id);
             option.textContent = client.name;
             clientSelect.appendChild(option);
 
@@ -71,7 +71,7 @@ async function showClients() {
             }
         });
 
-        
+
         const updateTasks = (clientId) => {
             taskSelect.innerHTML = '';
 
@@ -122,10 +122,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const button = document.querySelector('button');
     const divPause = document.getElementsByClassName('pause');
     const pauseSelect = document.getElementById('pause');
-    document.getElementById('loginForm').addEventListener('submit', async (event) => {
+    document.getElementById('modalForm').addEventListener('submit', async (event) => {
         event.preventDefault();
         const svgElement = document.getElementById('svg-loading');
         const buttonText = document.getElementById('button-text');
+
 
 
         if (svgElement) {
@@ -144,20 +145,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const client = formData.get('client');
         const task = formData.get('task');
         const pause = formData.get('pause');
-        console.log('Datos enviados del formulario:', { client, description, task, pause });
-        // event.target.querySelector('input[name="description"]').value = '';
-
-        // setTimeout(() => {
-        //     document.getElementById('svg-loading').classList.add('no-loading');
-        //     document.getElementById('svg-loading').classList.remove('loading');
-        //     document.getElementById('button-text').style.display = 'block';
-        // }, 5000);
-
 
         ipcRenderer.send('send-data', client, description, task, pause);
-
+        ipcRenderer.send('change-timer-status', timerEventData);
         ipcRenderer.once('send-data-response', () => {
-            // Restaurar el botón cuando llegue la respuesta
             event.target.querySelector('input[name="description"]').value = '';
             document.getElementById('svg-loading').classList.add('no-loading');
             document.getElementById('svg-loading').classList.remove('loading');
@@ -168,15 +159,22 @@ document.addEventListener('DOMContentLoaded', () => {
             button.style.opacity = '1';
             divPause[0].style.display = 'none';
             pauseSelect.innerHTML = '';
-            closeButton.style.display = 'block';
         });
 
     });
     showClients();
 
 
-    closeButton.addEventListener('click', () => {
+    closeButton.addEventListener('click', (event) => {
+        const data = JSON.parse(localStorage.getItem('workDayData'))
+        lastClient = data.pop();
         ipcRenderer.send('close-modal-window');
+        document.querySelector('input[name="description"]').value = '';
+        document.querySelector('select[name="client"]').value = lastClient.client.id;
+        divPause[0].style.display = 'none';
+        pauseSelect.innerHTML = '';
+        timerEventData = null;
+        
     });
 
 });

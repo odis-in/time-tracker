@@ -117,19 +117,15 @@ function createMainWindow() {
   mainWindow.on('close', (event) => {
     if (!app.isQuiting) {
       event.preventDefault();
-      console.log('Close event');
       mainWindow.hide();
     }
   });
 
   mainWindow.on('closed', () => {
-    console.log('Closed event');  
     mainWindow = null;
   });
 
-  mainWindow.on('session-end', () => {
-    console.log('Session end'); 
-  });
+  
 
   
 

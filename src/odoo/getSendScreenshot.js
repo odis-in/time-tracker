@@ -28,7 +28,6 @@ async function getSendScreenshot() {
                         reject(err);
                         return;
                     }
-                    console.log('result---------------------------->', result[0].send_screenshot);
                     resolve(result[0].send_screenshot);
                 }
             );

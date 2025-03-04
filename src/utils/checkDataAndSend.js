@@ -4,7 +4,7 @@ const { handleData } = require('./dataManager');
 async function checkDataAndSend(activityData) {
   const send_screenshot = await getSendScreenshot()
   try {
-    console.time('checkDataAndSend');
+    
     if (!activityData.presence || !activityData.screenshot) {
       return { status: 400, message: `${activityData.presence.status}  and ${activityData.screenshot}` };
     }
@@ -21,13 +21,13 @@ async function checkDataAndSend(activityData) {
       task_id: activityData.task_id || null,
       pause_id : activityData.pause_id || null,
     };
-    console.time('--------------------- HANDLE DATA SENT------------------------')
+    
     const result = await handleData(dataToSend);
-    console.timeEnd('--------------------- HANDLE DATA SENT------------------------')
+    
     // Limpiar los datos después de enviarlos
     activityData.presence = null;
     activityData.screenshot = null;
-    console.timeEnd('checkDataAndSend');
+    
     return result;
     
     // if (activityData.partner_id) {

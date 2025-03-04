@@ -28,19 +28,13 @@ function presenceNotification(activityData) {
 			const formattedTime = getFormattedTimestamp();
 			
 			if (response!='timeout') {
-				console.log('prueba modal desde la notificacion -------------------------->');
+				
 				createModalWindow();
-				console.log(`Presencia confirmada a las: ${formattedTime}`);
+				
 				activityData.presence = { status: 'active', timestamp: formattedTime };
-				// if (activityData.partner_id) {
-				// 	console.log('prueba desde la notificacion con el modal -------------------------->',activityData);
-				// 	checkDataAndSend(activityData)
-				// }
 			} else {
-				console.log(`No se recibió respuesta del usuario a las: ${formattedTime}`);
+				
 				activityData.presence = { status: 'inactive', timestamp: formattedTime };
-				console.log('prueba desde la inactividad -------------------------->',activityData);
-				//partner_id, description = null , status = inactive
 				checkDataAndSend(activityData)
 			}
 		}

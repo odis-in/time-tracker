@@ -54,25 +54,6 @@ if (!gotTheLock) {
     const mainWindow = getMainWindow();
     const loginWindow = getLoginWindow();
 
-    // // // if (mainWindow && mainWindow.isMinimized()) {
-    // // //   mainWindow.restore();
-    // // // }
-
-    // // // if (mainWindow && session) {
-    // // //   console.log('------------------SESION------------------------------')
-    // // //   coonsole.log(session);
-    // // //   mainWindow.show();
-    // // //   mainWindow.focus();
-    // // // } else if (loginWindow) {
-    // // //   console.log('------------------SESION------------------------------')
-    // // //   coonsole.log(session);
-    // // //   loginWindow.show();
-    // // //   loginWindow.focus();
-    // // // } else {
-      
-    // // //   createLoginWindow();
-    // // // }
-
     if (session) {
       mainWindow.show();
       mainWindow.focus();
@@ -131,7 +112,6 @@ if (!gotTheLock) {
     const { timeNotification } = await getCredentials(['timeNotification']);
 
     if (!timeNotification) {
-      console.log('No se ha definido la hora de notificación');
       return;
     }
 
@@ -152,7 +132,6 @@ if (!gotTheLock) {
     });
 
     if (presenceJob && screenshotJob && addressJob) {
-      console.log("Cron jobs ya están configurados");
       return;
     }
   }
@@ -163,7 +142,7 @@ if (!gotTheLock) {
       const { username, password, url, db , uid, session_id, timeNotification } = await getCredentials(['username', 'password', 'url', 'db', 'uid', 'session_id','timeNotification']);
 
       if (username && password) {
-        console.time('CATCH')
+        
         try {
           const[clients, userActivityData, tm , connection, pausas] = await Promise.all([
             getClients(session_id, url),
@@ -175,7 +154,6 @@ if (!gotTheLock) {
           
           await saveCredentials(username, password, url, tm.time_notification.toString()  , uid, session_id, db);
           session = true;
-          console.log(`Credenciales encontradas:, username: ${username}, password: ${password}, url: ${url} , db ${db}, session ${session}, uid: ${uid}, timeNotification ${timeNotification} `);
           
           const store = await getStore();
           const work_day = store.get(`work-day-${uid}`) || [];
@@ -246,7 +224,7 @@ if (!gotTheLock) {
         } catch(error) {
           console.log('Error al iniciar', error);
         }
-        console.timeEnd('CATCH')
+        
         
       
       
@@ -278,13 +256,11 @@ if (!gotTheLock) {
     powerMonitor.on('suspend', async () => {
       const store = await getStore();
       store.set('suspend', 'suspend');
-      console.log('La PC entró en suspensión.');
-      console.log(powerMonitor.getSystemIdleState(1));
       sendLastData();
     });
     verifyCredentialsOnStart();
     createTray();
-    console.log('app iniciado')
+    
     autoUpdater.checkForUpdates();
     ipcMain.handle('login', async (event, username, password, url, db) => {
       try {
@@ -295,17 +271,13 @@ if (!gotTheLock) {
           getTimeNotification(setCookieHeader, url),
           getStore()
         ]);
-        console.log('--------------------UID--------------------------')
-        console.log('UID:', uid);
 
         await saveCredentials(username, password, url, tm.time_notification.toString() , uid.toString(), setCookieHeader.toString(), db);
         const pauses = await getDataPause()
         const userActivityData = await getUserActivity();
         firstNotification();
-        console.timeEnd('-----------------GET USER ACTIVITY-----------------')
+        
         const work_day = store.get(`work-day-${uid}`) || [];
-        console.log('-----------------USER ODOO DATA-----------------')
-        console.log(userActivityData);
         store.set(`data-user-${uid}`, userActivityData);
         const synchronizeData = store.get(`data-user-${uid}`) || { summaries: [], activities: [] };
         let data = [];
@@ -366,7 +338,7 @@ if (!gotTheLock) {
         BrowserWindow.getAllWindows().forEach(win => {
           win.webContents.send('work-day-updated', work_day);
         });
-        console.log('tm',tm);
+        
         store.set('clients', clients);
         store.set('pauses', pauses);
         return {uid , name , imageBase64 };
@@ -379,7 +351,6 @@ if (!gotTheLock) {
   });
 
   autoUpdater.on("update-available", (info) => {
-    console.log(`Update available. Current version ${app.getVersion()}`);
     nodeNotifier.notify({
       title: 'Actualización disponible',
       message: 'Hay una actualización disponible para la aplicación',
@@ -392,7 +363,6 @@ if (!gotTheLock) {
   });
   
   autoUpdater.on("update-downloaded", (info) => {
-    console.log(`Update downloaded. Current version ${app.getVersion()}`);
     nodeNotifier.notify({
       title: 'Actualización descargada',
       message: 'La actualización ha sido descargada y está lista para ser instalada, cierra la aplicación para instalarla',
@@ -410,7 +380,6 @@ if (!gotTheLock) {
   });
 
   autoUpdater.on("error", (info) => {
-    console.log(`Error in auto-updater. ${info}`);
     nodeNotifier.notify({
       title: 'Error en la actualización',
       message: `Error durante la actualización: ${info}`,
@@ -427,7 +396,6 @@ if (!gotTheLock) {
     const loginWindow = getLoginWindow();
     if (mainWindow && session) mainWindow.close();
     if (loginWindow && !session) {
-      console.log('Cerrando ventana de inicio');
       app.isQuiting = true;
       app.quit();
       tray.destroy();
@@ -441,12 +409,11 @@ if (!gotTheLock) {
     const { uid } = await getCredentials(['uid']);
     const work_day = store.get(`work-day-${uid}`) || [];
     if (work_day.length === 0) {
-      console.log('no hay datos para enviar')
       return;
     }
     const lastItem = work_day[work_day.length - 1];
     const dateLocal = new Date().toLocaleDateString('en-US');
-    console.log(dateLocal);
+    
     const endLocalWork = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
     console.log(endLocalWork);
     const completeDate = new Date(`${dateLocal} ${endLocalWork}`).toISOString().replace('T',' ').substring(0, 19);
@@ -464,11 +431,11 @@ if (!gotTheLock) {
     await sendDataSummary('user.activity.summary', lastData);
   }
   ipcMain.on('close-all-windows', async () => {
-    console.time('----------------------CLOSE APP----------------------');
+    
     
     app.quit();
 
-    console.timeEnd('----------------------CLOSE APP----------------------');
+    
   });
 
   ipcMain.on('close-modal-window', () => {
@@ -477,23 +444,25 @@ if (!gotTheLock) {
   });
 
   ipcMain.on('pause-timer', () => {
-    stopCronJobs();
-    pauseNotification();
+    // stopCronJobs();
+    // pauseNotification();
     createModalWindow();
-    getModalWindow().webContents.send('timer-event');
+    getModalWindow().webContents.send('timer-event', 'pause');
   })
   
   ipcMain.on('resume-timer', () => {
-    setupCronJobs();
-    resumeNotification();
+    // setupCronJobs();
+    // resumeNotification();
     createModalWindow();
-    getModalWindow().webContents.send('timer-event');
+    getModalWindow().webContents.send('timer-event', 'resume');
   });
 
   ipcMain.on('logout', async () => {
+    await sendLastData();
     try {
+      
       await clearCredentials();
-
+      
       console.log('Credenciales eliminadas');
 
       const mainWindow = getMainWindow();
@@ -533,8 +502,8 @@ if (!gotTheLock) {
 
   ipcMain.on('send-manual-data', async (event, manualData) => {
     
-    console.time('----------------------MANUAL DATA----------------------')
-    console.time('------------------SENT INFO----------------------------')
+    
+    
     // // // const odoo_ids = await checkDataAndSend(manualData);
     // // // const odoo_id = await sendActivityUserSummary();
     
@@ -542,7 +511,7 @@ if (!gotTheLock) {
       await checkDataAndSend(manualData),
       await sendActivityUserSummary()
     ]);
-    console.timeEnd('------------------SENT INFO----------------------------')
+    
     console.log('Datos enviados:', odoo_ids, odoo_id);
     const store = await getStore();
     const { uid } = await getCredentials(['uid']);
@@ -561,10 +530,7 @@ if (!gotTheLock) {
     
 
     store.set(`work-day-${uid}`, work_day);
-    // // // console.time('-----------------GET USER ACTIVITY-----------------')
-    // // //   const userActivityData = await getUserActivity();
-    // // //   console.log(userActivityData);
-    // // //   console.timeEnd('-----------------GET USER ACTIVITY-----------------')
+    
     BrowserWindow.getAllWindows().forEach(win => {
         
       win.webContents.send('info-send', {
@@ -576,7 +542,7 @@ if (!gotTheLock) {
       });
     });
     event.reply('send-manual-data-response');
-    console.timeEnd('----------------------MANUAL DATA----------------------')
+    
     BrowserWindow.getAllWindows().forEach(win => {
       win.webContents.send('work-day-updated', work_day);
     });
@@ -584,6 +550,21 @@ if (!gotTheLock) {
     
   });
   //ENVIAR INFO DE ACTIVIDAD
+
+  ipcMain.on('change-timer-status', async (event, timerEventData) => {
+    
+    getMainWindow().webContents.send('timer-event', timerEventData);
+
+    if (timerEventData === 'pause') {
+      stopCronJobs();
+      pauseNotification();
+    }
+
+    if (timerEventData === 'resume') {
+      setupCronJobs();
+      resumeNotification();
+    }
+  })
   ipcMain.on('send-data', async (event, client, description, task, pause) => {
     try {
       const store = await getStore();
@@ -605,9 +586,10 @@ if (!gotTheLock) {
       }
       
       const work_day = store.get(`work-day-${uid}`) || [];
-      console.log('LEYENDO ACA ANTES DE CREAR NUEVO REGISTRO', work_day);
+      
+      
       let lastClient = null;
-      console.time('prepareDatd')
+      
       if (work_day.length === 0) {
         const data_work_day = {
           client: client_data,
@@ -624,11 +606,11 @@ if (!gotTheLock) {
         work_day.push(data_work_day);
         store.set(`work-day-${uid}`, work_day);
         console.log('Primer cliente agregado:', store.get(`work-day-${uid}`));
-        lastClient = client_data.name;
+        lastClient = client_data.id;
       } else {
         const lastItem = work_day[work_day.length - 1];
   
-        if (lastItem.client.name !== client_data.name) {
+        if (lastItem.client.id !== client_data.id) {
           lastItem.endWork = convertDate(activityData.presence.timestamp.split(' ')[1]);
           lastItem.timeWorked = calculateTimeDifference(lastItem.startWork, lastItem.endWork);
           const data_work_day = {
@@ -644,7 +626,6 @@ if (!gotTheLock) {
           };
           work_day.push(data_work_day);
           store.set(`work-day-${uid}`, work_day);
-          console.log('LEYENDO ACA DESPUES DE CREAR NUEVO REGISTRO', work_day);
         } else {
           lastItem.endWork = convertDate(activityData.presence.timestamp.split(' ')[1]);
           lastItem.timeWorked = calculateTimeDifference(lastItem.startWork, lastItem.endWork);
@@ -652,17 +633,6 @@ if (!gotTheLock) {
           store.set(`work-day-${uid}`, work_day);
         }
       }
-  
-      // Enviar datos actualizados a las ventanas del navegador
-      // // // BrowserWindow.getAllWindows().forEach(win => {
-      // // //   win.webContents.send('work-day-updated', work_day);
-      // // // });
-  
-      
-      
-      console.timeEnd('prepareDatd')
-      // const odoo_id = await checkDataAndSend(activityData);
-      console.time("Total Execution");
 
 
       const [activityDataLog, summaryDataLog] = await Promise.all([
@@ -670,14 +640,9 @@ if (!gotTheLock) {
         sendActivityUserSummary(),
       ]);
 
-      console.time('-----------------GET USER ACTIVITY-----------------')
+      
       const userActivityData = await getUserActivity();
       store.set(`data-user-${uid}`, userActivityData);
-      console.log(userActivityData);
-      console.timeEnd('-----------------GET USER ACTIVITY-----------------')
-      
-      console.timeEnd("Total Execution");
-      
       activityData.partner_id = null;
       activityData.description = null;
 
@@ -697,11 +662,6 @@ if (!gotTheLock) {
       //CERRAR MODAL HASTA DESPUES DE ENVIAR LA INFO
       modalWindows.close();
 
-
-
-      // console.log('##################################################################')
-      // console.log('Datos enviados:', summaryDataLog, activityDataLog);
-      // console.log('##################################################################')
       BrowserWindow.getAllWindows().forEach(win => {
         
         win.webContents.send('info-send', {

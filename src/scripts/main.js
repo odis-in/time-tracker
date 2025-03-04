@@ -15,6 +15,16 @@ ipcRenderer.on('info-send', (event, message) => {
 	console.info(message);
 });
 
+
+ipcRenderer.on('timer-event',  (event, data) => {
+	const btnPause = document.getElementById('btn-pause');
+	if (data === 'pause') {
+		btnPause.textContent = 'Reanudar';
+	} else {
+		btnPause.textContent = 'Pausar';
+	}
+});
+
 function applyHourValidation(input) {
 	input.addEventListener('input', (event) => {
 		let value = event.target.value;
@@ -273,7 +283,6 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 		
 		
 		const workDayData = JSON.parse(localStorage.getItem('workDayData'));
-		console.log(startInput, workDayData[workDayData.length -1]?.endWork , endInput, workDayData[workDayData.length -1]?.startWork);
 		if (startInput >= endInput) {
 			document.getElementById('message-error').textContent = 'LA HORA DE INCIO NO PUEDE SER MAYOR O IGUAL A LA HORA DE FIN';
 			return;
@@ -312,40 +321,6 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 			odoo_id: ' ',
 			odoo_ids: []
 		}
-
-
-		
-	//		'2025-01-14 16:52:03',
-		// console.log(toCorrectISO(`${newRecord.date} ${newRecord.startWork}`))
-	    
-	
-		  
-		
-
-		  
-
-		// enviar info a odoo
-		
-
-		
-		
-
-		// if (workDayData.length > 0 && workDayData[workDayData.length - 1].endWork === '00:00') { 
-		// 	const lastItem = workDayData[workDayData.length - 1];
-		// 	lastItem.endWork = newRecord.startWork;
-		// 	lastItem.timeWorked = calculateTimeDifference(lastItem.startWork, lastItem.endWork);
-		// 	const updatedData = [...workDayData.slice(0, -1), lastItem, newRecord];
-		// 	localStorage.setItem('workDayData', JSON.stringify(updatedData));
-		// 	ipcRenderer.send('update-work-day', updatedData);
-		// } else {
-		// Aplicar la animación fade-in a la tabla o a las filas de la tabla
-		// // // const tbody = document.getElementById('work-day-tbody');
-		// // // tbody.classList.add('fade-in'); 
-		// // // tbody.classList.remove('tbody-disabled');
-		// // // setTimeout(() => {
-		// // //   tbody.classList.remove('fade-in'); 
-		  
-		// // // }, 100); 
 		
 		const updatedData = [...workDayData, newRecord];
 		const order_data = updatedData.sort((a, b) => a.startWork.localeCompare(b.startWork));
@@ -420,20 +395,16 @@ function cancelEdit(button, originalStartTime, originalEndTime) {
 
 async function deleteRow(button) {
 	//sincronizar antes
-	console.time('deletedata')
+	
 	const workDayData = await ipcRenderer.invoke('get-work-day');
 	localStorage.setItem('workDayData', JSON.stringify(workDayData));
 	//sincronzado
-	console.timeEnd('deletedata')
+	
 	
 	const row = button.closest('tr');
 	const index = row.rowIndex - 1;
 	const dataRow = JSON.parse(localStorage.getItem('workDayData'));
 	const rowSelected = dataRow.filter((item, i) => i === index);
-	// const start_time = toCorrectISO(`${rowSelected[0].date} ${rowSelected[0].startWork}`);
-	// const end_time = toCorrectISO(`${rowSelected[0].date} ${rowSelected[0].endWork}`);
-	// const partner_id = rowSelected[0].client.id;
-	console.log('deleteRow ->', rowSelected[0].odoo_ids);
 	const odoo_ids = rowSelected[0].odoo_ids;
 	const odoo_id = rowSelected[0].odoo_id;
 	
@@ -462,16 +433,12 @@ async function deleteRow(button) {
 
 function addRow(button) {
 	const btnSave = document.querySelector('.btn-add');
-	// const btnSend = document.getElementById('btn-send');
+	
 	btnSave.disabled = true;
 	btnSave.style.cursor = 'not-allowed';
-	// // btnSend.disabled = true;
-	// // btnSend.style.cursor = 'not-allowed';
-	
-	
 	
 	if (btnSave.value === 'create') {
-		// console.log('Agregar');
+		
 		tbody = document.getElementById('work-day-tbody');
 		rowsData = tbody.getElementsByTagName('tr');;
 		const row = document.createElement('tr');
@@ -574,7 +541,6 @@ function convertMinutesToTime(minutes) {
 
 async function renderWorkDayData() {
     const workDayData = await ipcRenderer.invoke('get-work-day');
-    console.log('workDayData', workDayData);
     const today = new Date();
     const todayFormatted = today.toLocaleDateString('en-US');
     
@@ -748,10 +714,9 @@ document.getElementById('logout').addEventListener('click', () => {
 
 btnPause.addEventListener('click', () => {
     if (btnPause.textContent === "Pausar") {
-        btnPause.textContent = "Reanudar";
         ipcRenderer.send('pause-timer');
-    } else {
-        btnPause.textContent = "Pausar";
+    } 
+	if (btnPause.textContent === "Reanudar") {
         ipcRenderer.send('resume-timer');
     }
 });

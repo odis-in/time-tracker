@@ -3,9 +3,9 @@ const { getCredentials } = require('../utils/crendentialManager');
 
 async function sendData(modelName, activityData) {
     try {
-        console.time('sendData');
+        
         const { username, password, uid, url, db } = await getCredentials(['username', 'password', 'uid', 'url', 'db']);
-        console.timeEnd('sendData');
+        
         if (!username || !password || !uid || !url) {
             throw new Error('Credenciales no encontradas. Por favor, autentique nuevamente.');
         }
@@ -25,7 +25,6 @@ async function sendData(modelName, activityData) {
                     console.error('Error al crear el registro en Odoo:', err);
                     reject({ status: 400, message: err.message, error: err.code });
                 } else {
-                    console.log(`Registro creado con ID: ${result}`);
                     activityData.odoo_ids = result;
                     resolve({ status: 200, message: 'Activity data sent', odoo_ids: activityData.odoo_ids, data: result });
                 }
@@ -40,11 +39,11 @@ async function sendData(modelName, activityData) {
 
 
 async function sendDataSummary(modelName, activityData) {
-    console.log('---------------------------------------------------RECIVE DATA', activityData);
+    
     try {
-        console.time('sendDataSummary');
+        
         const { username, password, uid, url, db } = await getCredentials(['username', 'password', 'uid', 'url', 'db']);
-        console.timeEnd('sendDataSummary');
+        
         if (!username || !password || !uid || !url) {
             throw new Error('Credenciales no encontradas. Por favor, autentique nuevamente.');
         }
@@ -73,8 +72,6 @@ async function sendDataSummary(modelName, activityData) {
                     end_time: data.end_time,
                     total_hours: data.total_hours
                 };
-
-                console.log('ACTUALIZANDO USUARIO', dataToUpdate);
                 await new Promise((resolve, reject) => {
                     models.methodCall('execute_kw', [db, uid, password, modelName, 'write', [[data.odoo_id], dataToUpdate]],
                         function (err, value) {
@@ -82,7 +79,6 @@ async function sendDataSummary(modelName, activityData) {
                                 console.error("Error al actualizar el registro:", err);
                                 reject(err);
                             } else {
-                                console.log("Registro actualizado con éxito:", value);
                                 resolve(value);
                             }
                         }
@@ -98,19 +94,15 @@ async function sendDataSummary(modelName, activityData) {
                     total_hours: data.total_hours,
                     user_id: data.user_id
                 }
-
-                console.log('CREANDO USUARIO', createData);
-
-
+                
                 const result = await new Promise((resolve, reject) => {
                     models.methodCall('execute_kw', [db, uid, password, modelName, 'create', [createData]],
                         (err, result) => {
                             if (err) {
-                                console.error('Error al crear el registro en Odoo:', err);
                                 reject(err);
                                 return;
                             }
-                            console.log(`Registro de resumen creado con ID: ${result}`);
+                            
                             resolve({ status: 200, message: 'Activity data sent', odoo_id: result });
                         }
                     );
