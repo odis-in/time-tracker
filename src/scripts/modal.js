@@ -150,6 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ipcRenderer.send('change-timer-status', timerEventData);
         ipcRenderer.once('send-data-response', () => {
             event.target.querySelector('input[name="description"]').value = '';
+            timerEventData = null; //reinicio timer-event
             document.getElementById('svg-loading').classList.add('no-loading');
             document.getElementById('svg-loading').classList.remove('loading');
             buttonText.style.display = 'block';
