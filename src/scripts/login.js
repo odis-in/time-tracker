@@ -54,6 +54,11 @@ document.getElementById('loginForm').addEventListener('submit', async (event) =>
 
 document.addEventListener('DOMContentLoaded', () => {
   const closeButton = document.getElementById('close');
+  const minimmizeButton = document.getElementById('minimize');
+  minimmizeButton.addEventListener('click', () => {
+    ipcRenderer.send('minimize-login-window');
+  });
+
   closeButton.addEventListener('click', () => {
     ipcRenderer.send('close-main-window');
   });

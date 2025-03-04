@@ -91,7 +91,14 @@ button:hover {
 .window-controls svg {
   width: 24px;
   height: 24px;
+}
+
+.close{
   color: #4ace16; 
+}
+
+.minimize {
+  color: #f0ad4e; 
 }
 
 .window-btn {
@@ -110,8 +117,12 @@ button:hover {
   background-color: #bbb;
 }
 
-.window-controls svg:hover {
-  stroke: red;
+.close:hover {
+  stroke: red; 
+}
+
+.minimize:hover {
+  color: #d38212; 
 }
 
 .error-message {

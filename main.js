@@ -391,6 +391,13 @@ if (!gotTheLock) {
 
   });
 
+  ipcMain.on('minimize-login-window', () => {
+    const loginWindow = getLoginWindow();
+    if (loginWindow) {
+      loginWindow.close();
+    }
+  });
+
   ipcMain.on('close-main-window', () => {
     const mainWindow = getMainWindow();
     const loginWindow = getLoginWindow();
