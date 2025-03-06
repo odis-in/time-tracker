@@ -12,9 +12,10 @@ function getFormattedTimestamp() {
 function presenceNotification(activityData) {
 	nodeNotifier.notify(
 		{
+			appID: 'com.electron-project',
 			title: 'Confirmar presencia',
 			message: 'Click aqui para confirmar tu presencia',
-			icon: path.join(__dirname, '../assets/img/tele-trabajo.png'),
+			icon: path.join(__dirname, '../assets/img/timer-ticker-ico.png'),
 			sound: true,
 			wait: true,
 			reply: true,

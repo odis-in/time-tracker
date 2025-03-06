@@ -14,7 +14,7 @@ function createLoginWindow() {
   loginWindow = new BrowserWindow({
     width: 700,
     height: 650,
-    icon: path.join(__dirname, './src/assets/icons/png/time-tracker-img.png'),
+    icon: path.join(__dirname, '../assets/img/timer-ticker-ico.png'),
     webPreferences: {
       // preload: path.join(__dirname, '../..preload.js'),
       nodeIntegration: true,
@@ -58,7 +58,7 @@ function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1040,
     height: 600,
-    icon: path.join('./src/assets/img/time-tracker-img'),
+    icon: path.join(__dirname, '../assets/img/time-tracker-img.png'),
     webPreferences: {
       // preload: path.join(__dirname, '../preload.js'),
       nodeIntegration: true,
@@ -141,6 +141,7 @@ function createModalWindow() {
   modalWindow = new BrowserWindow({
     parent: mainWindow,
     modal: true,
+    icon: path.join(__dirname, '../assets/img/time-tracker-img.png'),
     // show: false,
     width: 415,
     height: 440,

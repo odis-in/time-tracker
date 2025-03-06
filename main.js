@@ -13,7 +13,7 @@ const { createLoginWindow, createMainWindow, createModalWindow, getLoginWindow, 
 const { getIpAndLocation } = require('./src/utils/getIPAddress');
 const { checkDataAndSend } = require('./src/utils/checkDataAndSend');
 const { calculateTimeDifference, convertDate } = require('./src/utils/calculateTimeDifference');
-const { sendActivityUserSummary } = require('./src/utils/dataManager');
+const { sendActivityUserSummary, sendLocalData } = require('./src/utils/dataManager');
 const nodeNotifier = require('node-notifier');
 const { checkServerConnection } = require('./src/utils/checkConnection');
 const { getUserActivity } = require('./src/odoo/getUserActivity');
@@ -64,7 +64,7 @@ if (!gotTheLock) {
   });
 
   function createTray() {
-    tray = new Tray(path.join(__dirname, './src/assets/img/tele-trabajo.png'));
+    tray = new Tray(path.join(__dirname, './src/assets/img/time-tracker-32x32.png'));
     const contextMenu = Menu.buildFromTemplate([
       {
         label: 'Mostrar',
@@ -354,7 +354,7 @@ if (!gotTheLock) {
     nodeNotifier.notify({
       title: 'Actualización disponible',
       message: 'Hay una actualización disponible para la aplicación',
-      icon: path.join(__dirname, './src/assets/img/tele-trabajo.png'),
+      icon: path.join(__dirname, './src/assets/img/timer-ticker-ico.png'),
       sound: true,
       wait: true
     });
@@ -366,7 +366,7 @@ if (!gotTheLock) {
     nodeNotifier.notify({
       title: 'Actualización descargada',
       message: 'La actualización ha sido descargada y está lista para ser instalada, cierra la aplicación para instalarla',
-      icon: path.join(__dirname, './src/assets/img/tele-trabajo.png'),
+      icon: path.join(__dirname, './src/assets/img/timer-ticker-ico.png'),
       sound: true,
       wait: true
     });
@@ -383,7 +383,7 @@ if (!gotTheLock) {
     nodeNotifier.notify({
       title: 'Error en la actualización',
       message: `Error durante la actualización: ${info}`,
-      icon: path.join(__dirname, './src/assets/img/tele-trabajo.png'),
+      icon: path.join(__dirname, './src/assets/img/timer-ticker-ico.png'),
       sound: true,
       wait: true
     });
@@ -574,9 +574,17 @@ if (!gotTheLock) {
   })
   ipcMain.on('send-data', async (event, client, description, task, pause) => {
     try {
+      //Enviar datos offlinea primero
+      console.time('sendDataLocal');
+      await sendLocalData('offlineData', 'summary');
+      await sendLocalData('offlineData', 'normal');
+      
+
+      console.timeEnd('sendDataLocal');
       const store = await getStore();
       const modalWindows = createModalWindow();
       modalWindows.show();
+
       console.log('Datos recibidos del formulario:', { client, description, task , pause });
       const { uid } = await getCredentials(['uid']);
       // Asignación de datos a `activityData`
@@ -646,24 +654,30 @@ if (!gotTheLock) {
         checkDataAndSend(activityData),
         sendActivityUserSummary(),
       ]);
+    
+      if (activityDataLog.status === 400 ){
+        BrowserWindow.getAllWindows().forEach(win => {
+          win.webContents.send('work-day-updated', work_day);
+        });  
+      } else {
+        const userActivityData = await getUserActivity();
+        store.set(`data-user-${uid}`, userActivityData);
+        activityData.partner_id = null;
+        activityData.description = null;
 
-      
-      const userActivityData = await getUserActivity();
-      store.set(`data-user-${uid}`, userActivityData);
-      activityData.partner_id = null;
-      activityData.description = null;
-
-      const work_day_sincronice = store.get(`work-day-${uid}`) || [];
-      const addIdLasItem = work_day_sincronice[work_day.length - 1];
-      addIdLasItem.odoo_ids.push(activityDataLog.odoo_ids);
-      if (addIdLasItem.odoo_id === ' ' ){
-        addIdLasItem.odoo_id = summaryDataLog.odoo_id;
+        const work_day_sincronice = store.get(`work-day-${uid}`) || [];
+        const addIdLasItem = work_day_sincronice[work_day.length - 1];
+        addIdLasItem.odoo_ids.push(activityDataLog.odoo_ids);
+        if (addIdLasItem.odoo_id === ' ' ){
+          addIdLasItem.odoo_id = summaryDataLog.odoo_id;
+        }
+        store.set(`work-day-${uid}`, work_day_sincronice);
+        // ESPERA PARA QUE SE ACTUALICE EL STORE
+        BrowserWindow.getAllWindows().forEach(win => {
+          win.webContents.send('work-day-updated', work_day_sincronice);
+        });  
       }
-      store.set(`work-day-${uid}`, work_day_sincronice);
-      // ESPERA PARA QUE SE ACTUALICE EL STORE
-      BrowserWindow.getAllWindows().forEach(win => {
-        win.webContents.send('work-day-updated', work_day_sincronice);
-      });
+      
 
       event.reply('send-data-response');
       //CERRAR MODAL HASTA DESPUES DE ENVIAR LA INFO

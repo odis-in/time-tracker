@@ -6,73 +6,55 @@ const { getCredentials } = require('./crendentialManager');
 
 async function getStore() {
     const { default: Store } = await import('electron-store');
-    return new Store(); 
+    return new Store();
 }
 
 async function saveDataLocally(activityData, key) {
-	const store = await getStore();
-    const savedData = store.get(key) || []; 
+    const store = await getStore();
+    const savedData = store.get(key) || [];
     savedData.push(activityData);
-
-    //ordenar por "timestamp": "2025-02-17 06:00 de menor a mayor" 
-    const order_data = savedData.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-
-    store.set(key, order_data); 
-    
+    store.set(key, savedData);
 }
 
 async function sendLocalData(key, type) {
-    
+
     const store = await getStore();
     const { uid } = await getCredentials(['uid'])
     const savedData = store.get(key);
-    const sincroniceData = store.get(`work-day-${uid}`) || [];
-    
+    const sincroniceData = store.get(`data-user-${uid}`) || [];
+
     if (savedData && savedData.length > 0) {
-        if(type === 'summary'){
+        if (type === 'summary') {
+            let dataInfo = [];
+            let current = null;
+            savedData.forEach((data) => {
+                if (!current || current.partner_id !== data.partner_id) {
+                    if (current) {
+                        current.end_time = data.timestamp;
+                    }
+                    current = {
+                        odoo_id: ' ',
+                        partner_id: data.partner_id,
+                        start_time: data.timestamp,
+                        end_time: savedData[savedData.length - 1]?.timestamp
+                    };
+                    dataInfo.push(current);
+                }
+            });
+
             try {
-                await sendDataSummary('user.activity.summary', savedData[0]);
-    
+                console.log('oofline')
+                const result = await sendDataSummary('user.activity.summary', dataInfo);
+                console.log('result summary', result)
             } catch (err) {
-    
+                console.error('Error al enviar datos de reusmen almacenados localmente:', err);
             }
         } else {
-            let index = 0;
+            let result = 0;
+
             for (const data of savedData) {
                 try {
-                    const activity = data.presence_status
-                    const partner_id = data.partner_id;
-                    const time = convertDate(data.timestamp.split(' ')[1])
-                    //ver si no se a borrado de work-day-uid
-                    const dataInsincroniceData = sincroniceData.filter(element => 
-                        element.client.id === partner_id && 
-                        element.startWork <= time && 
-                        element.endWork >= time
-                      );
-                    
-                    if (dataInsincroniceData.length === 0) {
-    
-                        savedData.slice(index, 1); //borrar objeto actual
-                        store.set(key, savedData);
-                    } else  {
                     result = await sendData('user.activity', data);
-    
-                    }
-                    
-                    if (activity==='active') {
-                        
-                        const resultSummaryData = await sendActivityUserSummary();
-                        
-                        const filteredData = sincroniceData.filter(item => (item.odoo_id === ' '  && item.client.id === partner_id));
-                        
-                        filteredData.forEach( i => {
-                            i.odoo_ids.push(result.odoo_ids);
-                            i.odoo_id = resultSummaryData?.odoo_id ? resultSummaryData.odoo_id : i.odoo_id;
-                        });
-                        store.set(`work-day-${uid}`, sincroniceData);
-                    }
-                    
-
 
                 } catch (error) {
                     console.error('Error al enviar datos almacenados localmente:', error);
@@ -80,28 +62,27 @@ async function sendLocalData(key, type) {
                 }
             }
         }
-        
-        store.delete(key); 
+
     }
-    
+
 }
 
 async function handleData(activityData) {
     try {
-        const [_,resutl] = await Promise.all([
-            sendLocalData('offlineData', 'normal'),
-            sendData('user.activity', activityData),
-            
-        ]
-        );
-        return resutl;
+        // // const [, , result] = await Promise.all([
+        // //     sendLocalData('offlineData', 'normal'),
+        // //     sendLocalData('offlineData', 'summary'),
+        // //     sendData('user.activity', activityData),
+        // // ]);
+        const result = await sendData('user.activity', activityData);
+        return result;
     } catch (error) {
         console.error('Error al enviar datos al servidor, guardando en local:', error);
         saveDataLocally(activityData, 'offlineData');
-        return { status: error.status , message: error.message , error: error.error };
+        return { status: error.status, message: error.message, error: error.error };
     }
 
-    
+
 }
 
 async function getStoredData() {
@@ -110,28 +91,28 @@ async function getStoredData() {
 }
 
 async function sendActivityUserSummary() {
-    
 
-    const [store, uid ] = await Promise.all([
+
+    const [store, uid] = await Promise.all([
         getStore(),
         getCredentials(['uid'])
     ]);
 
     const work_day = store.get(`work-day-${uid.uid}`) || [];
-    
+
     const today = new Date();
     const todayFormatted = today.toLocaleDateString('en-US');
 
     const remainingData = work_day.filter(data => data.date >= todayFormatted);
     store.set(`work-day-${uid.uid}`, remainingData);
     let activityData = [];
-    if (remainingData.length > 1 ){
+    if (remainingData.length > 1) {
         const index = remainingData.findIndex(data => data.odoo_id === ' ');
-        if ( index !== -1) {
+        if (index !== -1) {
             const startIndex = (index > 0) ? index - 1 : index;  // Si es el primer elemento, no buscar previo
-            
+
             const selectedData = remainingData.slice(startIndex, index + 1); //obtener previo y actual
-            
+
             selectedData.forEach(data => {
                 activityData.push({
                     partner_id: data.client.id,
@@ -163,21 +144,21 @@ async function sendActivityUserSummary() {
             total_hours: remainingData[0].timeWorked,
             odoo_id: remainingData[0].odoo_id ? remainingData[0].odoo_id : ' '
         })
-    } 
-    
+    }
+
     if (remainingData.length > 0) {
         try {
             const result = await sendDataSummary('user.activity.summary', activityData);
-            
+
             return (result[0]);
         } catch (error) {
             return { status: 400, message: error.message };
         }
     } else {
-        
+
         return { status: 400, message: 'No hay datos para enviar.' };
     }
-    
+
 }
 
-module.exports = { handleData ,sendActivityUserSummary};
+module.exports = { handleData, sendActivityUserSummary, sendLocalData };
