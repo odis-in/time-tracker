@@ -8,6 +8,8 @@ async function captureScreen(activityData) {
         const base64Data = Buffer.from(img).toString('base64');
         
         activityData.screenshot = { path: base64Data };
+        
+        return base64Data;
     } catch (err) {
         console.error('Error al capturar la pantalla:', err);
     }

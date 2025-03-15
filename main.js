@@ -574,24 +574,91 @@ if (!gotTheLock) {
   })
   ipcMain.on('send-data', async (event, client, description, task, pause) => {
     try {
-      //Enviar datos offlinea primero
-      console.time('sendDataLocal');
-      await sendLocalData('offlineData', 'summary');
-      await sendLocalData('offlineData', 'normal');
-      
-
-      console.timeEnd('sendDataLocal');
+      const { uid } = await getCredentials(['uid']);
       const store = await getStore();
+      const offLineaData = store.get('offlineData') || [];
+      console.log(offLineaData.length);
+      const work_day = store.get(`work-day-${uid}`) || [];
+      
+      //Enviar datos offlinea primero
+      if (offLineaData.length > 0) {
+        console.time('time-function-sendLocalData');
+        await sendLocalData('offlineData', 'summary');
+        await sendLocalData('offlineData', 'normal');
+        console.timeEnd('time-function-sendLocalData');
+        const synchronizeData = await getUserActivity();
+        console.log(synchronizeData)
+        let data = [];
+
+        let groupedActivities = [];
+        let usedActivities = new Set(); // Para evitar duplicados
+
+        synchronizeData.summaries.forEach((summary, index) => {
+          let summaryPartnerId = summary.partner_id[0];
+          let nextSummary = synchronizeData.summaries[index + 1];
+
+          let activitiesForSummary = synchronizeData.activities
+            .filter(activity => 
+              activity.partner_id[0] === summaryPartnerId && 
+              !usedActivities.has(activity.id) // Evitamos reusar actividades
+            )
+            .map(activity => {
+              usedActivities.add(activity.id);
+              return activity.id;
+            });
+
+          // Si el siguiente summary tiene el mismo partner_id, separamos correctamente
+          if (nextSummary && nextSummary.partner_id[0] === summaryPartnerId) {
+            groupedActivities.push([activitiesForSummary[0]]); // Solo el primer elemento en un nuevo grupo
+            activitiesForSummary.shift(); // Eliminamos el primero del array original
+          }
+
+          // Agregamos el resto de actividades (si quedan)
+          if (activitiesForSummary.length > 0) {
+            groupedActivities.push(activitiesForSummary);
+          }
+        });
+
+        synchronizeData.summaries.forEach((element, index) => {
+          
+          const activity = synchronizeData.activities.find(rec => 
+            rec.partner_id[0] === element.partner_id[0] && rec.description !== false              
+          );
+          const todayFormatted = new Date().toLocaleDateString('en-US');
+          const activitiesForSummary = groupedActivities[index] || [];
+          const data_work_day = {
+            client: { id: element.partner_id[0], name: element.partner_id[1] },
+            date: todayFormatted,
+            startWork: convertDate(element.start_time.split(' ')[1]),
+            endWork: convertDate(element.end_time.split(' ')[1]),
+            timeWorked: element.total_hours,
+            description: activity  ? activity.description  || ' ' : ' ',
+            userId: uid,
+            odoo_id: element.id,
+            odoo_ids: activitiesForSummary
+          };
+
+          data.push(data_work_day);
+        });
+        data.sort((a, b) => a.startWork.localeCompare(b.startWork))
+        store.set(`work-day-${uid}`, data);
+
+        BrowserWindow.getAllWindows().forEach(win => {
+          win.webContents.send('work-day-updated', work_day);
+        });
+      }
+      
       const modalWindows = createModalWindow();
       modalWindows.show();
 
       console.log('Datos recibidos del formulario:', { client, description, task , pause });
-      const { uid } = await getCredentials(['uid']);
+     
       // Asignación de datos a `activityData`
       activityData.partner_id = client;
       activityData.description = description;
       activityData.task_id = task;
       activityData.pause_id = pause;
+      activityData.presence = { status: 'active', timestamp: new Date().toISOString().replace('T',' ').substring(0, 19) };
   
       const client_data = store.get('clients').find(rec => rec.id == client);
       if (client_data) {
@@ -600,7 +667,7 @@ if (!gotTheLock) {
         console.log('Cliente no encontrado');
       }
       
-      const work_day = store.get(`work-day-${uid}`) || [];
+      
       
       
       let lastClient = null;

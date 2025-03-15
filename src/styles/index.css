@@ -409,3 +409,9 @@ tr:nth-child(even) {
   user-select: none;  
   pointer-events: none;  
 }
+
+.note {
+  position: absolute; 
+   left: 0; 
+  /*bottom: 5px; */
+}

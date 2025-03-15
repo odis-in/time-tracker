@@ -32,7 +32,7 @@ function presenceNotification(activityData) {
 				
 				createModalWindow();
 				
-				activityData.presence = { status: 'active', timestamp: formattedTime };
+				// activityData.presence = { status: 'active', timestamp: formattedTime };
 			} else {
 				
 				activityData.presence = { status: 'inactive', timestamp: formattedTime };
