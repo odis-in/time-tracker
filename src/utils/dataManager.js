@@ -1,5 +1,5 @@
 const { sendData, sendDataSummary, updateData } = require('../odoo/sendData');
-const { toCorrectISO, convertDate } = require('./calculateTimeDifference');
+const { toCorrectISO, convertDate, calculateTimeDifference } = require('./calculateTimeDifference');
 const { checkServerConnection } = require('./checkConnection');
 const { getCredentials } = require('./crendentialManager');
 
@@ -17,7 +17,7 @@ async function saveDataLocally(activityData, key) {
 }
 
 async function sendLocalData(key, type) {
-
+    
     const store = await getStore();
     const { uid } = await getCredentials(['uid'])
     const savedData = store.get(key);
@@ -27,25 +27,34 @@ async function sendLocalData(key, type) {
         if (type === 'summary') {
             let dataInfo = [];
             let current = null;
-            savedData.forEach((data) => {
+            savedData.forEach((data, index, arr) => {
+
+                const isLast = index === arr.length - 1; // Verificar si es el último elemento
+
                 if (!current || current.partner_id !== data.partner_id) {
                     if (current) {
                         current.end_time = data.timestamp;
+                        current.total_hours = calculateTimeDifference(
+                            current.start_time.split(' ')[1],
+                            current.end_time.split(' ')[1]);
                     }
+                    // Crear un nuevo registro, cuando cambia el partner_id, si el partner_id no tiene un consecutivo, el end_time es null
                     current = {
                         odoo_id: ' ',
                         partner_id: data.partner_id,
                         start_time: data.timestamp,
-                        end_time: savedData[savedData.length - 1]?.timestamp
+                        end_time: isLast ? null : arr[index + 1].timestamp,
+                        total_hours: calculateTimeDifference(
+                            data.timestamp.split(' ')[1], 
+                            isLast ? '00:00' : arr[index + 1].timestamp.split(' ')[1]
+                        )
                     };
                     dataInfo.push(current);
                 }
             });
 
             try {
-                console.log('oofline')
-                const result = await sendDataSummary('user.activity.summary', dataInfo);
-                console.log('result summary', result)
+                await sendDataSummary('user.activity.summary', dataInfo);
             } catch (err) {
                 console.error('Error al enviar datos de reusmen almacenados localmente:', err);
             }
@@ -60,6 +69,10 @@ async function sendLocalData(key, type) {
                     console.error('Error al enviar datos almacenados localmente:', error);
                     return; // Si falla el envío de un conjunto de datos, detener el proceso
                 }
+            }
+            
+            if (result.status === 200) {
+                store.delete(key); // Limpiar datos almacenados
             }
         }
 

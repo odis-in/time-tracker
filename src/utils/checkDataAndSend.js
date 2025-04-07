@@ -1,9 +1,15 @@
 const { getSendScreenshot } = require('../odoo/getSendScreenshot');
+const { captureScreen } = require('./captureScreen');
 const { handleData } = require('./dataManager');
 
 async function checkDataAndSend(activityData) {
   const send_screenshot = await getSendScreenshot()
   try {
+    //Volver a capturar la pantalla si no se ha capturado
+    if (activityData.screenshot == null) {
+      const result = await captureScreen(activityData);
+      activityData.screenshot = { path: result };
+    }
     
     if (!activityData.presence || !activityData.screenshot) {
       return { status: 400, message: `${activityData.presence.status}  and ${activityData.screenshot}` };
@@ -25,8 +31,9 @@ async function checkDataAndSend(activityData) {
     const result = await handleData(dataToSend);
     
     // Limpiar los datos después de enviarlos
-    activityData.presence = null;
+    // // // activityData.presence = null;
     activityData.screenshot = null;
+    
     
     return result;
     
