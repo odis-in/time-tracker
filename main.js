@@ -89,9 +89,13 @@ if (!gotTheLock) {
   }
   
   function firstNotification() {
-    presenceNotification(activityData);
+    // presenceNotification(activityData);
+    const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    activityData.presence = { status: 'active', timestamp: timestamp }
     captureScreen(activityData);
     getIpAndLocation(activityData);
+    const modalWindows = createModalWindow();
+    modalWindows.show();
   }
 
   function pauseNotification() {
