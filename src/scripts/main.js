@@ -332,8 +332,10 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 		// btnSend.disabled = false;
 		// btnSend.style.cursor = 'pointer';
 		const selectClient = document.querySelector('.client');
+		const selectTask = document.querySelector('.task');
 		const selectClientIndex = selectClient.selectedIndex;
 		const selectClientText = selectClient.options[selectClientIndex].text;
+		const selectTaskText = selectTask.options[selectTask.selectedIndex].text;
 		
 		const startInputValidate = document.querySelector('.start-time input').value;
 		const endInputValidate = document.querySelector('.end-time input').value;
@@ -379,6 +381,7 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 			date: new Date().toLocaleDateString('en-US'),
 			startWork: startInput,
 			endWork: endInput,
+			task: selectTask.value > 0 ? selectTaskText : ' ',
 			description: description,
 			timeWorked: calculateTimeDifference(startInput, endInput),
 			userId: uid,
@@ -407,6 +410,7 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 		activityData.partner_id = parseInt(newRecord.client.id);
 		activityData.presence = { timestamp: toCorrectISO(`${newRecord.date} ${newRecord.startWork}`), status: 'active'};
 		activityData.description = description;
+		activityData.task_id = parseInt(document.querySelector('.task').value);
 		
 		ipcRenderer.send('send-manual-data', activityData);
 		ipcRenderer.send('update-work-day-front', order_data)
@@ -560,20 +564,23 @@ function addRow(button) {
 }
 
 function convertTo24HourFormat(time) {
+    console.log('-------------->', time)
     if (!time) return time; 
+
+    const [hourMinute, period] = time.split(' ');
     
-    const [hourMinute, period] = time.split(' '); 
-    const [hour, minute] = hourMinute.split(':').map(Number); 
+    let [hour, minute] = hourMinute.split(':').map(Number); 
     
+    minute = isNaN(minute) ? '00' : minute.toString().padStart(2, '0');
+
     let hour24;
     if (period === 'PM') {
         hour24 = hour === 12 ? 12 : hour + 12; 
     } else {
         hour24 = hour === 12 ? 0 : hour; 
     }
-    
-    
-    return `${hour24.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+
+    return `${hour24.toString().padStart(2, '0')}:${minute}`;
 }
 
 function convertTo12HourFormat(time) {

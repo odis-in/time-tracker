@@ -157,6 +157,7 @@ function createModalWindow() {
     titleBarStyle: 'hidden',
     transparent: true,
     backgroundColor: '#00000000',
+    alwaysOnTop: true,
   });
 
   modalWindow.loadFile('./src/pages/modal.html');
