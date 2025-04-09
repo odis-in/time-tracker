@@ -198,6 +198,11 @@ if (!gotTheLock) {
             const activity = synchronizeData.activities.find(rec => 
               rec.partner_id[0] === element.partner_id[0] && rec.description !== false              
             );
+            
+            const activity_task = synchronizeData.activities.find(rec => 
+              rec.partner_id[0] === element.partner_id[0] && rec.task_id !== false              
+            );
+            
             const todayFormatted = new Date().toLocaleDateString('en-US');
             const activitiesForSummary = groupedActivities[index] || [];
             const data_work_day = {
@@ -206,6 +211,7 @@ if (!gotTheLock) {
               startWork: convertDate(element.start_time.split(' ')[1]),
               endWork: convertDate(element.end_time.split(' ')[1]),
               timeWorked: element.total_hours,
+              task: activity_task ? activity_task.task_id[1] : ' ',
               description: activity  ? activity.description  || ' ' : ' ',
               userId: uid,
               odoo_id: element.id,
@@ -320,6 +326,11 @@ if (!gotTheLock) {
           const activity = synchronizeData.activities.find(rec => 
             rec.partner_id[0] === element.partner_id[0] && rec.description !== false              
           );
+
+          const activity_task = synchronizeData.activities.find(rec => 
+            rec.partner_id[0] === element.partner_id[0] && rec.task_id !== false              
+          );
+
           const todayFormatted = new Date().toLocaleDateString('en-US');
           const activitiesForSummary = groupedActivities[index] || [];
           const data_work_day = {
@@ -328,6 +339,7 @@ if (!gotTheLock) {
             startWork: convertDate(element.start_time.split(' ')[1]),
             endWork: convertDate(element.end_time.split(' ')[1]),
             timeWorked: element.total_hours,
+            task: activity_task ? activity_task.task_id[1] : ' ',
             description: activity  ? activity.description  || ' ' : ' ',
             userId: uid,
             odoo_id: element.id,
@@ -670,54 +682,95 @@ if (!gotTheLock) {
       } else {
         console.log('Cliente no encontrado');
       }
-      
-      
-      
-      
+      const task_name = client_data['tasks'].find( rec => rec.id === parseInt(task))?.name || ' ';
       let lastClient = null;
       
-      if (work_day.length === 0) {
-        const data_work_day = {
-          client: client_data,
-          date: new Date().toLocaleDateString('en-US'),
-          startWork: convertDate(activityData.presence.timestamp.split(' ')[1]),
-          endWork: '00:00',
-          timeWorked: '00:00',
-          description: description,
-          userId: uid,
-          odoo_id: ' ',
-          odoo_ids: []
-        };
-  
-        work_day.push(data_work_day);
-        store.set(`work-day-${uid}`, work_day);
-        console.log('Primer cliente agregado:', store.get(`work-day-${uid}`));
-        lastClient = client_data.id;
+      if (pause > 0) {
+        console.log('gestionando la puasa')
+        const lastPause = work_day.find(rec => rec.pause === true);
+        if (!lastPause) {
+          console.log('No hay pausa previa registrada');
+          const data_work_day = {
+            client: { id: client_data.id, name: client_data.name },
+            date: new Date().toLocaleDateString('en-US'),
+            startWork: convertDate(activityData.presence.timestamp.split(' ')[1]),
+            endWork: '00:00',
+            timeWorked: '00:00',
+            task: task_name,
+            description: 'Pausa',
+            pause: true,
+            userId: uid,
+            odoo_id: ' ',
+            odoo_ids: []
+          };
+
+
+          const lastItem = work_day.length > 0 ? work_day[work_day.length - 1] : null;
+          if (lastItem) {
+            
+            lastItem.endWork = convertDate(activityData.presence.timestamp.split(' ')[1]);
+            lastItem.timeWorked = calculateTimeDifference(lastItem.startWork, lastItem.endWork);
+          }
+          work_day.push(data_work_day);
+          store.set(`work-day-${uid}`, work_day);
+        } else {
+          lastPause.endWork = convertDate(activityData.presence.timestamp.split(' ')[1]);
+          lastPause.timeWorked = calculateTimeDifference(lastPause.startWork, lastPause.endWork);
+          lastPause.description = 'Pausa';
+          lastPause.pause = false;
+          store.set(`work-day-${uid}`, work_day);
+          console.log('Ultima pausa actualizada:', lastPause);
+        }
+      
+        
       } else {
-        const lastItem = work_day[work_day.length - 1];
-  
-        if (lastItem.client.id !== client_data.id) {
-          lastItem.endWork = convertDate(activityData.presence.timestamp.split(' ')[1]);
-          lastItem.timeWorked = calculateTimeDifference(lastItem.startWork, lastItem.endWork);
+        console.log('gestionando datos no pausa')
+        if (work_day.length === 0) {
           const data_work_day = {
             client: client_data,
             date: new Date().toLocaleDateString('en-US'),
             startWork: convertDate(activityData.presence.timestamp.split(' ')[1]),
             endWork: '00:00',
             timeWorked: '00:00',
+            task: task_name,
             description: description,
             userId: uid,
             odoo_id: ' ',
             odoo_ids: []
           };
+    
           work_day.push(data_work_day);
           store.set(`work-day-${uid}`, work_day);
+          console.log('Primer cliente agregado:', store.get(`work-day-${uid}`));
+          lastClient = client_data.id;
         } else {
-          lastItem.endWork = convertDate(activityData.presence.timestamp.split(' ')[1]);
-          lastItem.timeWorked = calculateTimeDifference(lastItem.startWork, lastItem.endWork);
-          lastItem.description = description;
-          store.set(`work-day-${uid}`, work_day);
+          const lastItem = work_day[work_day.length - 1];
+    
+          if (lastItem.client.id !== client_data.id) {
+            lastItem.endWork = convertDate(activityData.presence.timestamp.split(' ')[1]);
+            lastItem.timeWorked = calculateTimeDifference(lastItem.startWork, lastItem.endWork);
+            const data_work_day = {
+              client: client_data,
+              date: new Date().toLocaleDateString('en-US'),
+              startWork: convertDate(activityData.presence.timestamp.split(' ')[1]),
+              endWork: '00:00',
+              timeWorked: '00:00',
+              task: task_name,
+              description: description,
+              userId: uid,
+              odoo_id: ' ',
+              odoo_ids: []
+            };
+            work_day.push(data_work_day);
+            store.set(`work-day-${uid}`, work_day);
+          } else {
+            lastItem.endWork = convertDate(activityData.presence.timestamp.split(' ')[1]);
+            lastItem.timeWorked = calculateTimeDifference(lastItem.startWork, lastItem.endWork);
+            lastItem.description = description;
+            store.set(`work-day-${uid}`, work_day);
+          }
         }
+
       }
 
 

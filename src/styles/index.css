@@ -338,6 +338,9 @@ tr:nth-child(even) {
 .tb-actions{
   width: 10%;
 }
+.tb-task {
+  width: 20%;
+}
 
 .btn-add{
   width: 150px;
@@ -412,6 +415,9 @@ tr:nth-child(even) {
 
 .note {
   position: absolute; 
-   left: 0; 
+   left: 0;
+   color: var(--primary-color); 
+   font-weight: bold;
+   font-size: 18px;
   /*bottom: 5px; */
 }

@@ -81,38 +81,94 @@ function toggleAmPm(button) {
     }
   }
 
-async function showClients() {
-	try {
-		// const clients = await getClients();
-		const { clients } = await ipcRenderer.invoke('get-clients-and-pauses')
-		
-		
-		const clientSelect = document.getElementById('client');
+  async function showClients() {
+    try {
+        const { clients } = await ipcRenderer.invoke('get-clients-and-pauses');
+        const clientSelect = document.getElementById('client');
+        const taskSelect = document.getElementById('task');
 
-		if (!clients || clients.length === 0) {
-			console.warn('No hay clientes disponibles.');
-			clientSelect.innerHTML = '<option value="">No hay clientes disponibles</option>';
-			return;
-		}
-		
-		clients.forEach(client => {
+        if (!clients || clients.length === 0) {
+            console.warn('No hay clientes disponibles.');
+            clientSelect.innerHTML = '<option value="">No hay clientes disponibles</option>';
+            taskSelect.innerHTML = '<option value="">No hay tareas disponibles</option>';
+            return;
+        }
 
-			if (client.name === '.') {
+        clientSelect.innerHTML = '';
+        taskSelect.innerHTML = '<option value="">Selecciona un cliente primero</option>';
+
+        let firstValidClient = null;
+
+        // Obtener el último cliente de localStorage
+        const data = JSON.parse(localStorage.getItem('workDayData')) || [];
+        const lastClient = data.length > 0 ? data[data.length - 1].client : null;
+
+        // Si hay un cliente guardado, agregarlo como opción seleccionada
+        if (lastClient) {
+            const lastClientOption = document.createElement('option');
+            lastClientOption.value = String(lastClient.id); // Convertir a string para evitar errores
+            lastClientOption.textContent = lastClient.name;
+            lastClientOption.selected = true;
+            clientSelect.appendChild(lastClientOption);
+        }
+
+        // Agregar clientes a la lista
+        clients.forEach(client => {
+            if (client.name === '.' || (lastClient && client.id === lastClient.id)) {
                 return;
             }
-			
-			const option = document.createElement('option');
-			option.value = client.id;
-			option.textContent = client.name;
-			clientSelect.appendChild(option);
-		});
-	} catch (error) {
-		console.error('Error al obtener los clientes:', error);
+
+            const option = document.createElement('option');
+            option.value = String(client.id);
+            option.textContent = client.name;
+            clientSelect.appendChild(option);
+
+            if (!firstValidClient) {
+                firstValidClient = client;
+            }
+        });
 
 
-		const clientSelect = document.getElementById('client');
-		clientSelect.innerHTML = '<option value="">Error al cargar los clientes</option>';
-	}
+        const updateTasks = (clientId) => {
+            taskSelect.innerHTML = '';
+
+            if (!clientId) {
+                taskSelect.innerHTML = '<option value="">Selecciona un cliente primero</option>';
+                return;
+            }
+
+            const selectedClient = clients.find(client => String(client.id) === String(clientId));
+
+            if (selectedClient && selectedClient.tasks.length > 0) {
+                selectedClient.tasks.forEach(task => {
+                    const option = document.createElement('option');
+                    option.value = String(task.id);
+                    option.textContent = task.name;
+                    taskSelect.appendChild(option);
+                });
+            } else {
+                taskSelect.innerHTML = '<option value="">No hay tareas disponibles</option>';
+            }
+        };
+
+        // Evento para cambiar las tareas cuando se seleccione otro cliente
+        clientSelect.addEventListener('change', () => {
+            updateTasks(clientSelect.value);
+        });
+
+        // Seleccionar correctamente el cliente si hay uno guardado
+        if (lastClient) {
+            clientSelect.value = String(lastClient.id);
+            updateTasks(lastClient.id);
+        } else if (firstValidClient) {
+            clientSelect.value = String(firstValidClient.id);
+            updateTasks(firstValidClient.id);
+        }
+
+    } catch (error) {
+        console.error('Error al obtener los clientes:', error);
+        document.getElementById('client').innerHTML = '<option value="">Error al cargar los clientes</option>';
+    }
 }
 
 async function editRow(button) {
@@ -458,6 +514,7 @@ function addRow(button) {
 				<button class="time-mode" onclick="toggleAmPm(this)">AM</button>
 			</div>
 		</td>
+		<td><select name="task" id="task" class="task"></td>
 		<td class="description">
 			<input type="text" placeholder="Descripción">
 		</td>
@@ -572,15 +629,16 @@ async function renderWorkDayData() {
 			<td>${item.client.name}</td>
 			<td class="start-time">${convertTo12HourFormat(item.startWork)}</td>
 			<td class="end-time">${convertTo12HourFormat(item.endWork)}</td>
+			<td> ${item.task} </td>
 			<td class="description">${item.description}</td>
 			<td class="time-work">${item.timeWorked}</td>
 			<td style="display:flex; gap:5px;">
 				<button class="edit-btn" style='visibility: hidden'; onclick="editRow(this)">${editIcon}</button>
 				<button class="cancel-btn" style='visibility: hidden'; onclick="deleteRow(this)">${deleteIcon}</button>
-			</td>
-			`;
-			// // <button class="edit-btn" onclick="editRow(this)">${editIcon}</button>
-			// // 	<button class="cancel-btn" onclick="deleteRow(this)">${deleteIcon}</button>
+			</td>`;
+			
+			// <button class="edit-btn" onclick="editRow(this)">${editIcon}</button>
+			// <button class="cancel-btn" onclick="deleteRow(this)">${deleteIcon}</button>
 			tbody.appendChild(row);
 
 			totalMinutes += convertTimeToMinutes(item.timeWorked);
