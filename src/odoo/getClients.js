@@ -1,6 +1,6 @@
 async function getClients(session_id, url) {
 	try {
-        
+
 		const response = await fetch(`${url}/web/get_partner`, {
 			method: 'GET',
 			headers: {
@@ -9,15 +9,26 @@ async function getClients(session_id, url) {
 			}
 		});
 
-		const responseText = await response.text();  
-		
+		const responseText = await response.json();
+
+
 		if (response.status !== 200) {
 			console.log('Error al obtener los clientes de Odoo:', response.statusText);
 			return;
 		}
-		
+
 		try {
-			return JSON.parse(responseText);
+			const dataOrder = responseText.sort(function (a, b) {
+				if (a.name.toLowerCase() < b.name.toLowerCase()) {
+					return -1;
+				}
+				if (a.name.toLowerCase() > b.name.toLowerCase()) {
+					return 1;   
+				}
+				return 0;     
+			});
+
+			return dataOrder;
 		} catch (jsonError) {
 			console.error('Error al parsear la respuesta JSON:', jsonError);
 			return;
@@ -29,5 +40,5 @@ async function getClients(session_id, url) {
 }
 
 module.exports = {
-    getClients,
+	getClients,
 };

@@ -81,7 +81,17 @@ async function showClients() {
             }
 
             const selectedClient = clients.find(client => String(client.id) === String(clientId));
-
+            selectedClient.tasks.sort((a, b) => {
+                if (a.name.toLowerCase() < b.name.toLowerCase()) {
+                    return -1;  // a va antes que b
+                }
+                if (a.name.toLowerCase() > b.name.toLowerCase()) {
+                    return 1;   // b va antes que a
+                }
+                return 0;     // son iguales
+            });
+            
+            
             if (selectedClient && selectedClient.tasks.length > 0) {
                 selectedClient.tasks.forEach(task => {
                     const option = document.createElement('option');
