@@ -23,7 +23,7 @@ async function getStore() {
   const { default: Store } = await import('electron-store');
   return new Store();
 }
-autoUpdater.autoDownload = false;
+autoUpdater.autoDownload = true;
 autoUpdater.autoInstallOnAppQuit = true;
 let tray;
 let presenceJob = null;
@@ -365,28 +365,28 @@ if (!gotTheLock) {
       }
     });
   });
-
-  autoUpdater.on("update-available", (info) => {
-    nodeNotifier.notify({
-      title: 'Actualización disponible',
-      message: 'Hay una actualización disponible para la aplicación',
-      icon: path.join(__dirname, './src/assets/img/timer-ticker-ico.png'),
-      sound: true,
-      wait: true
-    });
-    autoUpdater.downloadUpdate(); 
-    tray.setToolTip('comenzando la descarga'); // Descarga la actualización
-  });
+  //#NOTE Actulización con mensajes de información, solo son mensajes informativos
+  // // // autoUpdater.on("update-available", (info) => {
+  // // //   nodeNotifier.notify({
+  // // //     title: 'Actualización disponible',
+  // // //     message: 'Hay una actualización disponible para la aplicación',
+  // // //     icon: path.join(__dirname, './src/assets/img/timer-ticker-ico.png'),
+  // // //     sound: true,
+  // // //     wait: true
+  // // //   });
+  // // //   autoUpdater.downloadUpdate(); 
+  // // //   tray.setToolTip('comenzando la descarga'); // Descarga la actualización
+  // // // });
   
-  autoUpdater.on("update-downloaded", (info) => {
-    nodeNotifier.notify({
-      title: 'Actualización descargada',
-      message: 'La actualización ha sido descargada y está lista para ser instalada, cierra la aplicación para instalarla',
-      icon: path.join(__dirname, './src/assets/img/timer-ticker-ico.png'),
-      sound: true,
-      wait: true
-    });
-  });
+  // // // autoUpdater.on("update-downloaded", (info) => {
+  // // //   nodeNotifier.notify({
+  // // //     title: 'Actualización descargada',
+  // // //     message: 'La actualización ha sido descargada y está lista para ser instalada, cierra la aplicación para instalarla',
+  // // //     icon: path.join(__dirname, './src/assets/img/timer-ticker-ico.png'),
+  // // //     sound: true,
+  // // //     wait: true
+  // // //   });
+  // // // });
 
   autoUpdater.on('download-progress', (progressObj) => {
     const { percent } = progressObj;
