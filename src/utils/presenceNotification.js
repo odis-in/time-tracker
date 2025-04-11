@@ -14,7 +14,7 @@ function presenceNotification(activityData) {
 		{
 			appID: 'com.electron-project',
 			title: 'Confirmar presencia',
-			message: 'Click aqui para confirmar tu presencia',
+			message: 'Click aquí para confirmar tu presencia',
 			icon: path.join(__dirname, '../assets/img/timer-ticker-ico.png'),
 			sound: true,
 			wait: true,
