@@ -1,6 +1,6 @@
 {
   "name": "time-tracker",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "time-tracker app",
   "main": "main.js",
   "scripts": {
@@ -8,7 +8,7 @@
     "pack": "build --dir",
     "dist": "electron-builder"
   },
-  "repository": "https://github.com/carlosaid/time-tracker",
+  "repository": "https://github.com/odis-in/time-tracker",
   "publish": {
     "provider": "github",
     "releaseType": "release"
@@ -16,22 +16,16 @@
   "author": "devcs",
   "license": "ISC",
   "build": {
-    "appId": "com.electron-project",
+    "appId": "com.odis.time-tracker",
     "asar": false,
     "productName": "Time Tracker",
-    "dmg": {
-      "contents": [
-        {
-          "x": 110,
-          "y": 150
-        },
-        {
-          "x": 240,
-          "y": 150,
-          "type": "link",
-          "path": "/Applications"
-        }
-      ]
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "./src/assets/img/timer-ticker-ico.icns"
     },
     "linux": {
       "target": [
