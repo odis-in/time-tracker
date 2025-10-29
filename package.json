@@ -1,12 +1,14 @@
 {
   "name": "time-tracker",
-  "version": "1.2.2",
+  "version": "1.2.7",
   "description": "time-tracker app",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "pack": "build --dir",
-    "dist": "electron-builder"
+    "dist": "electron-builder",
+    "prebuild": "find dist/ -type f -exec xattr -cr {} +",
+    "postbuild": "xattr -cr dist/mac-arm64/Time\\ Tracker.app"
   },
   "repository": "https://github.com/odis-in/time-tracker",
   "publish": {
@@ -17,16 +19,29 @@
   "license": "ISC",
   "build": {
     "appId": "com.odis.time-tracker",
-    "asar": false,
+    "asar": true,
     "productName": "Time Tracker",
     "mac": {
       "category": "public.app-category.productivity",
       "target": [
         "dmg",
-        "zip"
+        "zip",
+        "mas"
       ],
+      "hardenedRuntime": true,
+      "entitlements": "entitlements.mac.plist",
+      "entitlementsInherit": "entitlements.mac.plist",
+      "gatekeeperAssess": true,
       "icon": "./src/assets/img/timer-ticker-ico.icns"
     },
+    "mas": {
+      "entitlements": "entitlements.mas.plist",
+      "entitlementsInherit": "entitlements.mas.inherit.plist",
+      "hardenedRuntime": true,
+      "provisioningProfile": "build/provisioningProfileTimeTracker.provisionprofile"
+    },
+    "afterPack": "./scripts/remove-xattrs.js",
+    "afterSign": null,
     "linux": {
       "target": [
         "AppImage",
@@ -42,6 +57,7 @@
     }
   },
   "devDependencies": {
+    "@electron/notarize": "^2.5.0",
     "electron": "^34.3.0",
     "electron-builder": "^24.13.3",
     "request-promise": "*"
