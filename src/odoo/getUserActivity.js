@@ -42,7 +42,7 @@ async function getUserActivity() {
         const activities = await new Promise((resolve, reject) => {
             models.methodCall(
                 'execute_kw',
-                [db, uid, password, 'user.activity', 'search_read', [domain, ['id', 'user_id', 'timestamp', 'partner_id', 'description','task_id','pause_id']]],
+                [db, uid, password, 'user.activity', 'search_read', [domain, ['id', 'user_id', 'timestamp', 'partner_id', 'description','task_id','pause_id','brand_id']]],
                 (err, result) => {
                     if (err) {
                         console.error('Error al obtener user.activity en Odoo:', err);

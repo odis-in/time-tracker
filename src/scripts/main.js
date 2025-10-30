@@ -15,13 +15,27 @@ ipcRenderer.on('info-send', (event, message) => {
 	console.info(message);
 });
 
+ipcRenderer.on('ws-message', (event, msg) => {
+	msg_json = JSON.parse(msg.toString());
+	console.log(msg_json);
+	if (msg_json.type === 'permission_previous_hours') {
+		console.log('Habilitando botón de horas anteriores');
+		// const btnPause = document.getElementById('btn-pause');
+		// btnPause.style.display = 'none';
+	}
+	
+});
 
 ipcRenderer.on('timer-event',  (event, data) => {
-	const btnPause = document.getElementById('btn-pause');
+	// const btnPause = document.getElementById('btn-pause');
+	// if (data === 'pause') {
+	// 	btnPause.textContent = 'Reanudar';
+	// } else {
+	// 	btnPause.textContent = 'Pausar';
+	// }
+	const btnAction = document.getElementById('btn-end');
 	if (data === 'pause') {
-		btnPause.textContent = 'Reanudar';
-	} else {
-		btnPause.textContent = 'Pausar';
+		btnAction.dataset.state = 'in-pause'
 	}
 });
 
@@ -225,7 +239,12 @@ async function editRow(button) {
 
 async function saveRow(button, originalStartTime, originalEndTime) {
 	tbody = document.getElementById('work-day-tbody');
-	
+	const btnEnd = document.querySelector('.btn-end');
+	const btnPause = document.querySelector('.btn-pause');
+	[btnSave, btnEnd, btnPause].forEach(btn => {
+		btn.disabled = false;
+		btn.style.cursor = 'pointer';
+	});
 	const btnSave = document.querySelector('.btn-add');
 	// const btnSend = document.getElementById('btn-send');
 	const now = new Date().toLocaleTimeString('es-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
@@ -326,11 +345,6 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 			
 		}
 	} else {
-		//CREANDO NUEVO REGISTRO
-		// // // btnSave.disabled = false;
-		// // // btnSave.style.cursor = 'pointer';
-		// btnSend.disabled = false;
-		// btnSend.style.cursor = 'pointer';
 		const selectClient = document.querySelector('.client');
 		const selectTask = document.querySelector('.task');
 		const selectClientIndex = selectClient.selectedIndex;
@@ -437,9 +451,13 @@ async function saveRow(button, originalStartTime, originalEndTime) {
 function cancelEdit(button, originalStartTime, originalEndTime) {
 	const btnSave = document.querySelector('.btn-add');
 	// const btnSend = document.getElementById('btn-send');
-	btnSave.disabled = false;
-	btnSave.style.cursor = 'pointer';
-	btnSave.style.backgroundColor = '#0056b3';
+	const btnEnd = document.querySelector('.btn-end');
+	const btnPause = document.querySelector('.btn-pause');
+	[btnSave, btnEnd, btnPause].forEach(btn => {
+		btn.disabled = false;
+		btn.style.cursor = 'pointer';
+		// btn.style.backgroundColor = '#0056b3';
+	});
 	// btnSend.disabled = false;
 	// btnSend.style.backgroundColor = '#0056b3';
 	// btnSend.style.cursor = 'pointer';
@@ -501,9 +519,12 @@ async function deleteRow(button) {
 
 function addRow(button) {
 	const btnSave = document.querySelector('.btn-add');
-	
-	btnSave.disabled = true;
-	btnSave.style.cursor = 'not-allowed';
+	const btnEnd = document.querySelector('.btn-end');
+	const btnPause = document.querySelector('.btn-pause');
+	[btnSave, btnEnd, btnPause].forEach(btn => {
+		btn.disabled = true;
+		btn.style.cursor = 'not-allowed';
+	});
 	
 	if (btnSave.value === 'create') {
 		
@@ -564,7 +585,6 @@ function addRow(button) {
 }
 
 function convertTo24HourFormat(time) {
-    console.log('-------------->', time)
     if (!time) return time; 
 
     const [hourMinute, period] = time.split(' ');
@@ -611,11 +631,62 @@ function convertMinutesToTime(minutes) {
     return `${String(hours).padStart(2, '0')}:${String(remainingMinutes).padStart(2, '0')}`;
 }
 
+async function getConfigOdoo() {
+    try {
+        const config = await ipcRenderer.invoke('get-odoo-config');
+        return config;
+    } catch (error) {
+        console.error('Error al obtener la configuración:', error);
+        return null;
+    }
+}
+
 async function renderWorkDayData() {
+	const configOdoo = await getConfigOdoo();
     const workDayData = await ipcRenderer.invoke('get-work-day');
     const today = new Date();
     const todayFormatted = today.toLocaleDateString('en-US');
-    
+	const btnPrevHour = document.getElementById('btn-add');
+	// const btnPause = document.getElementById('btn-pause');	
+	// const isPaused = btnPause.textContent === 'Reanudar';
+	// const hasWorkDay = workDayData.length > 0;
+	// const now = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+	
+	// const viewPrevHourButton = now >= configOdoo.start_to_prev_hours;
+	// document.querySelectorAll('.btn-end').forEach(btn => {
+	// 	const shouldHide = !hasWorkDay
+	// 	if (shouldHide) {
+	// 		btn.classList.add('hidden');
+	// 	} else {
+	// 		btn.classList.remove('hidden');
+	// 	}
+	// 	// btn.classList.remove('hidden');
+	// 	// btn.style.display = shouldHide ? 'none' : 'block';
+		
+	// });
+	const nowDeactivation = new Date();
+	function updatePrevHourButton() {
+		const now = new Date();
+		const deactivationHour = 23	; 
+		if (
+			now.getDate() > nowDeactivation.getDate() ||
+			now.getHours() >= deactivationHour || 
+			!configOdoo.activate_reg_prev_hour
+		) {
+			btnPrevHour.classList.add('hidden');
+		} else {
+			btnPrevHour.classList.remove('hidden');
+		}
+	}
+	if (configOdoo.activate_reg_prev_hour) {
+		setInterval(updatePrevHourButton, 1000 * 60);
+		updatePrevHourButton();
+	} else {
+		btnPrevHour.classList.add('hidden');
+	}
+	
+
+
 
     const filteredData = workDayData.filter(item => {
         const itemDate = item.date;
@@ -626,13 +697,14 @@ async function renderWorkDayData() {
 
     const tbody = document.getElementById('work-day-tbody');
     const counter = document.getElementById('counter');
+	
     tbody.innerHTML = '';
     if (filteredData.length === 0 ) {
         const emptyRow = document.createElement('tr');
         emptyRow.innerHTML = `<td colspan="5">No hay datos disponibles</td>`;
         tbody.appendChild(emptyRow);
     }
-
+	
     let totalMinutes = 0;
 	const userId = localStorage.getItem('uid');
 	
@@ -642,16 +714,17 @@ async function renderWorkDayData() {
 			
 			row.innerHTML = `
 			<td>${item.client.name}</td>
+			<td>${item.brand ? item.brand : ''}</td>
 			<td class="start-time">${convertTo12HourFormat(item.startWork)}</td>
 			<td class="end-time">${convertTo12HourFormat(item.endWork)}</td>
 			<td> ${item.task} </td>
 			<td class="description">${item.description}</td>
 			<td class="time-work">${item.timeWorked}</td>
-			<td style="display:flex; gap:5px;">
-				<button class="edit-btn" style='visibility: hidden'; onclick="editRow(this)">${editIcon}</button>
-				<button class="cancel-btn" style='visibility: hidden'; onclick="deleteRow(this)">${deleteIcon}</button>
-			</td>`;
-			
+			`;
+			// <td style="display:flex; gap:5px;">
+			// 	<button class="edit-btn" style='visibility: hidden'; onclick="editRow(this)">${editIcon}</button>
+			// 	<button class="cancel-btn" style='visibility: hidden'; onclick="deleteRow(this)">${deleteIcon}</button>
+			// </td>
 			// <button class="edit-btn" onclick="editRow(this)">${editIcon}</button>
 			// <button class="cancel-btn" onclick="deleteRow(this)">${deleteIcon}</button>
 			tbody.appendChild(row);
@@ -663,43 +736,7 @@ async function renderWorkDayData() {
     counter.textContent = convertMinutesToTime(totalMinutes);
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    const closeButton = document.getElementById('close');
-    closeButton.addEventListener('click', () => {
-        ipcRenderer.send('close-main-window');
-    });
 
-    const usernameDiv = document.getElementById('username');
-    const profileImage = document.getElementById('profileImage');
-    if (usernameDiv) {
-        usernameDiv.textContent = localStorage.getItem('name');
-        window.addEventListener('storage', (event) => {
-            if (event.key === 'name') {
-                const username = localStorage.getItem('name');
-                usernameDiv.textContent = username;
-            }
-        });
-    }
-
-    if (profileImage) {
-        profileImage.src = localStorage.getItem('imageBase64');
-        window.addEventListener('storage', (event) => {
-            if (event.key === 'imageBase64') {
-                const imageBase64 = localStorage.getItem('imageBase64');
-                profileImage.src = imageBase64;
-            }
-        });
-    }
-
-    renderWorkDayData();
-    ipcRenderer.on('work-day-updated', () => {
-        renderWorkDayData();
-        const btnSave = document.querySelector('.btn-add');
-        btnSave.disabled = false;
-        btnSave.style.cursor = 'pointer';
-        btnSave.value = 'create';
-    });
-});
 
 document.getElementById('logout').addEventListener('click', () => {
     ipcRenderer.send('logout');
@@ -775,23 +812,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 });
-
-const btnPause = document.getElementById('btn-pause');
+const btnEnd = document.getElementById('btn-end');
+const btnPrevHours = document.getElementById('btn-add')
+// const btnPause = document.getElementById('btn-pause');
 document.getElementById('logout').addEventListener('click', () => {
-	btnPause.textContent = 'Pausar';
+	// btnPause.textContent = 'Pausar';
 	ipcRenderer.send('logout');
 });
 
 
 
 
-btnPause.addEventListener('click', () => {
-    if (btnPause.textContent === "Pausar") {
-        ipcRenderer.send('pause-timer');
-    } 
-	if (btnPause.textContent === "Reanudar") {
-        ipcRenderer.send('resume-timer');
-    }
+// btnPause.addEventListener('click', () => {
+//     if (btnPause.textContent === "Pausar") {
+//         ipcRenderer.send('pause-timer');
+//     } 
+// 	if (btnPause.textContent === "Reanudar") {
+//         ipcRenderer.send('resume-timer')
+//     }
+// });
+
+
+btnEnd.addEventListener('click', () => {
+	
+	if (btnEnd.dataset.state === 'in-pause') {
+		ipcRenderer.send('resume-timer')
+		btnEnd.dataset.state = 'normal'
+	}
+
+	ipcRenderer.send('end-task');
+});
+
+btnPrevHours.addEventListener('click', () => {	
+	ipcRenderer.send('prev-hours')
 });
 
 function updateTime() {

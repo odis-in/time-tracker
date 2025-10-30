@@ -1,6 +1,7 @@
 const screenshot = require('screenshot-desktop');
 const { Buffer } = require('buffer');
-
+const { systemLogger } = require('./systemLogs');
+const logger = systemLogger();
 async function captureScreen(activityData) {
     try {        
         const img = await screenshot({ format: 'png' });
@@ -8,10 +9,11 @@ async function captureScreen(activityData) {
         const base64Data = Buffer.from(img).toString('base64');
         
         activityData.screenshot = { path: base64Data };
+        logger.info('Captura de pantalla realizada con éxito');
         
         return base64Data;
     } catch (err) {
-        console.error('Error al capturar la pantalla:', err);
+        logger.error(`Error al capturar la pantalla: ${err.message}`);
     }
 }
 

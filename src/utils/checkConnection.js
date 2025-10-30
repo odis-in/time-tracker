@@ -12,17 +12,16 @@ const checkServerConnection = async () => {
         if (response.ok) {
             // document.getElementById('status').innerHTML = 'Conectado';
             
-            return true; 
+            return {status: true, message:'connection successful'}; 
         } else {
             // document.getElementById('status').innerHTML = 'Desconectado';
             
-            return false; 
+            return {status: false, message:`connection failed with status ${response.status}`} ; 
         }
     } catch (error) {
-        console.error('Error al conectar con el servidor:', error.message);
         // document.getElementById('status').innerHTML = 'Desconectado';
         
-        return false; 
+        return {status: false, message:`connection error: ${error.message}`}; 
     }
 };
 

@@ -143,7 +143,7 @@ function createModalWindow() {
     modal: true,
     icon: path.join(__dirname, '../assets/img/time-tracker-img.png'),
     // show: false,
-    width: 415,
+    width: 450,
     height: 440,
     // resizable: false,
     webPreferences: {

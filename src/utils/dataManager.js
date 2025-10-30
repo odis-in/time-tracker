@@ -1,3 +1,4 @@
+const { getSendScreenshot } = require('../odoo/getSendScreenshot');
 const { sendData, sendDataSummary, updateData } = require('../odoo/sendData');
 const { toCorrectISO, convertDate, calculateTimeDifference } = require('./calculateTimeDifference');
 const { checkServerConnection } = require('./checkConnection');
@@ -24,6 +25,7 @@ async function sendLocalData(key, type) {
     const sincroniceData = store.get(`data-user-${uid}`) || [];
 
     if (savedData && savedData.length > 0) {
+        const send_screenshot = await getSendScreenshot()
         if (type === 'summary') {
             let dataInfo = [];
             let current = null;
@@ -63,6 +65,8 @@ async function sendLocalData(key, type) {
 
             for (const data of savedData) {
                 try {
+                    data.screenshot = send_screenshot ? data.screenshot : null;
+
                     result = await sendData('user.activity', data);
 
                 } catch (error) {
@@ -174,4 +178,4 @@ async function sendActivityUserSummary() {
 
 }
 
-module.exports = { handleData, sendActivityUserSummary, sendLocalData };
+module.exports = { handleData, sendActivityUserSummary, sendLocalData , saveDataLocally};

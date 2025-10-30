@@ -25,6 +25,7 @@ async function checkDataAndSend(activityData) {
       partner_id: activityData.partner_id || null,
       description: activityData.description || null,
       task_id: activityData.task_id || null,
+      brand_id : activityData.brand_id || null,
       pause_id : activityData.pause_id || null,
     };
     

@@ -53,8 +53,9 @@
         <h2 class="text-lg font-medium mb-2 element">Lista de trabajo del día</h2>
         <div class="flex justify-between items-center mb-4">
         <div class="flex gap-2">
-          <button class="btn-add" id="btn-add" onclick="addRow(this)" value="create">Crear Nuevo</button>
-          <button class="btn-pause" id="btn-pause">Pausar</button>
+          <button class="btn-end" id="btn-end" data-state="normal">Cambiar de tarea</button>
+          <!-- <button class="btn-pause" id="btn-pause">Pausar</button> -->
+          <button class="btn-add hidden" id="btn-add" value="create">Horas anteriores</button>
         </div>
         <!-- <button class="btn-add" id="btn-send">Enviar Datos</button> -->
         
@@ -70,12 +71,13 @@
             <thead>
               <tr>
                 <th class="tb-client">Cliente</th>
+                <th class="tb-brand">Marca</th>
                 <th class="tb-start-work">Hora Inicio</th>
                 <th class="tb-end-workd"">Hora Final</th>
                 <th class="tb-task">Tarea</th>
                 <th class="tb-description">Descripción</th>
                 <th class="tb-time-work">Tiempo</th>
-                <th class="tb-actions">Acciones</th>
+                <!-- <th class="tb-actions">Acciones</th> -->
               </tr>
             </thead>
             <tbody id="work-day-tbody">

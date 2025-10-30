@@ -1,5 +1,7 @@
 const https = require('https');
 const http = require('http'); // Para pruebas locales
+const { systemLogger } = require('./systemLogs');
+const logger = systemLogger();
 // const { checkDataAndSend } = require('./checkDataAndSend');
 
 // Función para obtener la IP pública usando Promesas
@@ -64,9 +66,10 @@ async function getIpAndLocation(activityData) {
     activityData.ipAddress = ip;
     activityData.longitude = location.lon;
     activityData.latitude = location.lat;
+    logger.info('Dato de IP y localización obtenidos con éxito');
     // setTimeout(() => checkDataAndSend(activityData), 1000);
   } catch (error) {
-    console.error(error);
+    logger.error('Error al obtener IP o localización: ' + error);
     return { ip: null, location: null };
   }
 }
