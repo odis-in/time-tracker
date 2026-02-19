@@ -15,6 +15,100 @@ ipcRenderer.on('info-send', (event, message) => {
 	console.info(message);
 });
 
+let updateBannerEl = null;
+let pendingUpdateStatus = null;
+
+function ensureUpdateBanner() {
+	if (updateBannerEl) {
+		return updateBannerEl;
+	}
+
+	const header = document.querySelector('.app-container-index .flex.items-center.justify-between');
+	if (!header) {
+		return null;
+	}
+
+	const banner = document.createElement('div');
+	banner.className = 'update-banner hidden';
+
+	const text = document.createElement('span');
+	text.className = 'update-banner__text';
+
+	const percent = document.createElement('span');
+	percent.className = 'update-banner__percent';
+
+	banner.appendChild(text);
+	banner.appendChild(percent);
+
+	const dateContainer = header.querySelector('.text-muted-foreground.text-sm');
+	if (dateContainer) {
+		header.insertBefore(banner, dateContainer);
+	} else {
+		header.appendChild(banner);
+	}
+
+	updateBannerEl = banner;
+	return updateBannerEl;
+}
+
+function setUpdateBanner(state, percentValue, message) {
+	const banner = ensureUpdateBanner();
+	if (!banner) {
+		return;
+	}
+
+	const textEl = banner.querySelector('.update-banner__text');
+	const percentEl = banner.querySelector('.update-banner__percent');
+
+	let text = '';
+	let showPercent = false;
+
+	switch (state) {
+		case 'available':
+			text = 'Actualización disponible. Descargando...';
+			break;
+		case 'downloading':
+			text = 'Descargando actualización';
+			showPercent = true;
+			break;
+		case 'downloaded':
+			text = 'Actualización descargada. Reiniciando en 5s...';
+			break;
+		case 'error':
+			text = message ? `Error de actualización: ${message}` : 'Error de actualización';
+			break;
+		case 'idle':
+		default:
+			banner.classList.add('hidden');
+			return;
+	}
+
+	textEl.textContent = text;
+	if (showPercent && Number.isFinite(percentValue)) {
+		percentEl.textContent = ` ${percentValue.toFixed(2)}%`;
+	} else {
+		percentEl.textContent = '';
+	}
+
+	banner.classList.remove('hidden');
+}
+
+function applyUpdateStatus(payload) {
+	if (document.readyState === 'loading') {
+		pendingUpdateStatus = payload;
+		return;
+	}
+
+	setUpdateBanner(payload.state, payload.percent, payload.message);
+}
+
+ipcRenderer.on('update-status', (event, payload) => {
+	if (!payload || !payload.state) {
+		return;
+	}
+	applyUpdateStatus(payload);
+});
+
 ipcRenderer.on('ws-message', (event, msg) => {
 	msg_json = JSON.parse(msg.toString());
 	console.log(msg_json);
@@ -809,6 +903,11 @@ document.addEventListener('DOMContentLoaded', () => {
 		btnSave.style.cursor = 'pointer';
 		btnSave.value = 'create';
 	});
+
+	if (pendingUpdateStatus) {
+		applyUpdateStatus(pendingUpdateStatus);
+		pendingUpdateStatus = null;
+	}
 
 
 });

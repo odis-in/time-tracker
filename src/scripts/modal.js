@@ -78,7 +78,7 @@ async function showClients() {
         const clientSelect = document.getElementById('client');
         const brandSelect = document.getElementById('brand');
         const taskSelect = document.getElementById('task');
-
+        const descriptionInput = document.getElementById('description');
         if (!clients || clients.length === 0) {
             console.warn('No hay clientes disponibles.');
             clientSelect.innerHTML = '<option value="">No hay clientes disponibles</option>';
@@ -212,6 +212,22 @@ async function showClients() {
             updateTasks(brandSelect.value);
         });
 
+        taskSelect.addEventListener('change', () => {
+            const selectedOption = taskSelect.options[taskSelect.selectedIndex];
+            const tags = (selectedOption.dataset.tag || '').split(',').map(t => t.trim()).filter(Boolean);
+            
+            if (tags.length > 0) {
+                tags.forEach(tag => {
+                    if (tag.toLowerCase() == 'pausa' ) {
+                        descriptionInput.removeAttribute('required');
+                    } else {
+                        descriptionInput.setAttribute('required', '1');
+                    }
+                    
+                });
+            }
+        });
+
         // Seleccionar correctamente el cliente si hay uno guardado
         if (lastClient) {
             clientSelect.value = String(lastClient.id);
@@ -342,7 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const messageError = document.querySelector('#error-message');
         messageError.textContent = '';
         currentError = false;
-        
+        showClients();     
     });
 
 });

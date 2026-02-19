@@ -27,6 +27,16 @@ async function getStore() {
 }
 autoUpdater.autoDownload = true;
 autoUpdater.autoInstallOnAppQuit = true;
+autoUpdater.allowPrerelease = app.getVersion().includes('-');
+
+function broadcastUpdateStatus(payload) {
+  const windows = BrowserWindow.getAllWindows();
+  windows.forEach(win => {
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('update-status', payload);
+    }
+  });
+}
 let tray;
 let presenceJob = null;
 let screenshotJob = null;
@@ -34,6 +44,10 @@ let addressJob = null;
 let session = null;
 let initialTimeout = null; 
 let statusConnection = false;
+let currentNotificationMinutes = null;
+let pauseAutoResumeTimeout = null;
+let pauseAutoResumeMinutes = null;
+let isPaused = false;
 
 const activityData = {
   odoo_id: null,
@@ -134,30 +148,29 @@ if (!gotTheLock) {
   //   }
   // }
 
-  async function setupCronJobs() {
-    logger.info('Cron Jobs configurados');
-    const { timeNotification } = await getCredentials(['timeNotification']);
-    if (!timeNotification) return;
-    const intervalMinutes = parseInt(timeNotification);
+  async function setupCronJobs(intervalMinutes) {
+    if (!Number.isFinite(intervalMinutes) || intervalMinutes <= 0) {
+      return;
+    }
+    logger.info('Cron Jobs configured');
     const intervalMs = intervalMinutes * 60 * 1000;
     const now = new Date();
-    const minutes = now.getMinutes();
-    const remainder = minutes % intervalMinutes;
-    const minutesToNext = remainder === 0 ? intervalMinutes : intervalMinutes - remainder;
-    const msToNext = minutesToNext * 60 * 1000 - (now.getSeconds() * 1000 + now.getMilliseconds());
 
     if (initialTimeout) clearTimeout(initialTimeout);
 
+    const nextNotification = new Date(now.getTime() + intervalMs);
+    logger.info(`Next notification will be at ${nextNotification.toLocaleString('en-US', { hour12: false })}`);
+
     initialTimeout = setTimeout(() => {
-        presenceNotification(activityData);
-        captureScreen(activityData);
-        getIpAndLocation(activityData);
-      
+      presenceNotification(activityData);
+      captureScreen(activityData);
+      getIpAndLocation(activityData);
+
       presenceJob = setInterval(() => presenceNotification(activityData), intervalMs);
       screenshotJob = setInterval(() => captureScreen(activityData), intervalMs);
       addressJob = setInterval(() => getIpAndLocation(activityData), intervalMs);
       initialTimeout = null;
-    }, msToNext);
+    }, intervalMs);
 }
 
 function stopCronJobs() {
@@ -173,10 +186,166 @@ function stopCronJobs() {
   presenceJob = screenshotJob = addressJob = null;
 }
 
+function clearPauseAutoResume() {
+  if (pauseAutoResumeTimeout) {
+    clearTimeout(pauseAutoResumeTimeout);
+    pauseAutoResumeTimeout = null;
+  }
+}
+
+function schedulePauseAutoResume() {
+  clearPauseAutoResume();
+  if (!Number.isFinite(pauseAutoResumeMinutes) || pauseAutoResumeMinutes <= 0) {
+    return;
+  }
+
+  pauseAutoResumeTimeout = setTimeout(() => {
+    pauseAutoResumeTimeout = null;
+    logger.info('Auto reanudando por tiempo de pausa');
+    const mainWindow = getMainWindow();
+    if (mainWindow) {
+      mainWindow.webContents.send('timer-event', 'resume');
+    }
+    updateActivityPresence();
+    presenceNotification(activityData);
+    setupCronJobs(currentNotificationMinutes);
+  }, pauseAutoResumeMinutes * 60 * 1000);
+}
+
+function buildWorkDayFromOdooData(synchronizeData, uid) {
+  const activities = Array.isArray(synchronizeData?.activities) ? synchronizeData.activities : [];
+  const summaries = Array.isArray(synchronizeData?.summaries) ? synchronizeData.summaries : [];
+  const activitiesSorted = [...activities].sort(
+    (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
+  );
+  const summarySorted = [...summaries].sort(
+    (a, b) => new Date(a.start_time) - new Date(b.start_time)
+  );
+
+  const rows = [];
+  let current = null;
+
+  const getActivityTime = activity => {
+    if (!activity?.timestamp) return null;
+    const activityTime = new Date(activity.timestamp);
+    return Number.isNaN(activityTime) ? null : activityTime;
+  };
+
+  activitiesSorted.forEach(activity => {
+    const activityTime = getActivityTime(activity);
+    if (!activityTime) return;
+
+    const clientId = activity.partner_id?.[0] || 0;
+    const clientName = activity.partner_id?.[1] || ' ';
+    const taskName = activity.task_id ? activity.task_id[1] : ' ';
+    const brandName = activity.brand_id ? activity.brand_id[1] || ' ' : ' ';
+    const description = activity.pause_id ? activity.pause_id[1] : (activity.description || ' ');
+
+    if (!current) {
+      current = {
+        client: { id: clientId, name: clientName },
+        date: new Date().toLocaleDateString('en-US'),
+        startWork: convertDate(activity.timestamp.split(' ')[1]),
+        endWork: convertDate(activity.timestamp.split(' ')[1]),
+        timeWorked: '00:00',
+        task: taskName,
+        description: description,
+        brand: brandName,
+        userId: uid,
+        odoo_id: ' ',
+        odoo_ids: [activity.id],
+        startTimestamp: activityTime,
+        endTimestamp: activityTime,
+        partnerId: clientId
+      };
+      rows.push(current);
+      return;
+    }
+
+    const isSameGroup =
+      current.client.id === clientId &&
+      current.brand === brandName &&
+      current.task === taskName;
+
+    if (!isSameGroup) {
+      current = {
+        client: { id: clientId, name: clientName },
+        date: new Date().toLocaleDateString('en-US'),
+        startWork: convertDate(activity.timestamp.split(' ')[1]),
+        endWork: convertDate(activity.timestamp.split(' ')[1]),
+        timeWorked: '00:00',
+        task: taskName,
+        description: description,
+        brand: brandName,
+        userId: uid,
+        odoo_id: ' ',
+        odoo_ids: [activity.id],
+        startTimestamp: activityTime,
+        endTimestamp: activityTime,
+        partnerId: clientId
+      };
+      rows.push(current);
+      return;
+    }
+
+    current.endWork = convertDate(activity.timestamp.split(' ')[1]);
+    current.endTimestamp = activityTime;
+    current.timeWorked = calculateTimeDifference(current.startWork, current.endWork);
+    current.description = description;
+    current.odoo_ids.push(activity.id);
+  });
+
+  if (rows.length === 0 && summarySorted.length === 0) {
+    return [];
+  }
+
+  if (rows.length === 0) {
+    return summarySorted.map(summary => ({
+      client: { id: summary.partner_id[0], name: summary.partner_id[1] },
+      date: new Date().toLocaleDateString('en-US'),
+      startWork: convertDate(summary.start_time.split(' ')[1]),
+      endWork: convertDate(summary.end_time.split(' ')[1]),
+      timeWorked: summary.total_hours,
+      task: ' ',
+      description: ' ',
+      brand: ' ',
+      userId: uid,
+      odoo_id: summary.id,
+      odoo_ids: []
+    }));
+  }
+
+  const usedSummaries = new Set();
+
+  rows.forEach(row => {
+    const summary = summarySorted.find(candidate => {
+      if (usedSummaries.has(candidate.id)) return false;
+      if (candidate.partner_id?.[0] !== row.partnerId) return false;
+      const summaryStart = new Date(candidate.start_time);
+      const summaryEnd = new Date(candidate.end_time);
+      if (Number.isNaN(summaryStart) || Number.isNaN(summaryEnd)) return false;
+      return row.startTimestamp >= summaryStart && row.endTimestamp <= summaryEnd;
+    });
+
+    if (summary) {
+      usedSummaries.add(summary.id);
+      row.odoo_id = summary.id;
+      row.endWork = convertDate(summary.end_time.split(' ')[1]);
+      row.timeWorked = summary.total_hours;
+      row.endTimestamp = new Date(summary.end_time);
+    }
+  });
+
+  return rows.map(row => {
+    const { startTimestamp, endTimestamp, partnerId, ...cleanRow } = row;
+    return cleanRow;
+  });
+}
+
   async function verifyCredentialsOnStart() {
     try {
       logger.info('verify credentiansl on start');
-      const { username, password, url, db , uid, session_id, timeNotification } = await getCredentials(['username', 'password', 'url', 'db', 'uid', 'session_id','timeNotification']);
+      const { username, password, url, db , uid, session_id } = await getCredentials(['username', 'password', 'url', 'db', 'uid', 'session_id']);
 
       if (username && password) {
         logger.info(`Iniciando sesión para el usuario: ${username}`);
@@ -197,75 +366,8 @@ function stopCronJobs() {
           const work_day = store.get(`work-day-${uid}`) || [];
           store.set(`data-user-${uid}`, userActivityData);
           const synchronizeData = store.get(`data-user-${uid}`) || { summaries: [], activities: [] };
-          let data = [];
-          let groupedActivities = [];
-          let usedActivities = new Set(); 
-          
-          synchronizeData.summaries.forEach((summary, index) => {
-            let summaryPartnerId = summary.partner_id[0];
-            let nextSummary = synchronizeData.summaries[index + 1];
-  
-            let activitiesForSummary = synchronizeData.activities
-              .filter(activity => 
-                activity.partner_id[0] === summaryPartnerId && 
-                !usedActivities.has(activity.id) 
-              )
-              .map(activity => {
-                usedActivities.add(activity.id);
-                return activity.id;
-              });
-  
-            // Si el siguiente summary tiene el mismo partner_id, separamos correctamente
-            if (nextSummary && nextSummary.partner_id[0] === summaryPartnerId) {
-              groupedActivities.push([activitiesForSummary[0]]); // Solo el primer elemento en un nuevo grupo
-              activitiesForSummary.shift(); 
-            }
-  
-            // Agregamos el resto de actividades (si quedan)
-            if (activitiesForSummary.length > 0) {
-              groupedActivities.push(activitiesForSummary);
-            }
-          });
-  
-          synchronizeData.summaries.forEach((element, index) => {
-            
-            const activity = synchronizeData.activities.find(rec => 
-              rec.partner_id[0] === element.partner_id[0] && rec.description !== false              
-            );
-            
-            const activity_task = synchronizeData.activities.find(rec => 
-              rec.partner_id[0] === element.partner_id[0] && rec.task_id !== false              
-            );
-
-            const activity_brand = synchronizeData.activities.find(rec => 
-              rec.partner_id[0] === element.partner_id[0] && rec.brand_id !== false
-            );
-
-            const activity_pauses = synchronizeData.activities.find(rec => 
-              rec.partner_id[0] === element.partner_id[0] && rec.pause_id !== false
-            );
-            const description = activity_pauses ? activity_pauses.pause_id[1] : (activity ? activity.description : ' ');
-            const todayFormatted = new Date().toLocaleDateString('en-US');
-            const activitiesForSummary = groupedActivities[index] || [];
-            const data_work_day = {
-              client: { id: element.partner_id[0], name: element.partner_id[1] },
-              date: todayFormatted,
-              startWork: convertDate(element.start_time.split(' ')[1]),
-              endWork: convertDate(element.end_time.split(' ')[1]),
-              timeWorked: element.total_hours,
-              task: activity_task ? activity_task.task_id[1] : ' ',
-              description: description,
-              brand: activity_brand ? activity_brand.brand_id[1]  || ' ' : ' ',
-              userId: uid,
-              odoo_id: element.id,
-              odoo_ids: activitiesForSummary
-            };
-  
-            data.push(data_work_day);
-          });
-  
-          
-          data.sort((a, b) => a.startWork.localeCompare(b.startWork))
+          const data = buildWorkDayFromOdooData(synchronizeData, uid);
+          data.sort((a, b) => a.startWork.localeCompare(b.startWork));
           store.set(`work-day-${uid}`, data);
           
           BrowserWindow.getAllWindows().forEach(win => {
@@ -285,7 +387,7 @@ function stopCronJobs() {
       
       createMainWindow();
       firstNotification();
-      setupCronJobs();  
+      setupCronJobs(currentNotificationMinutes);  
         
       } else {
         createLoginWindow();
@@ -336,70 +438,8 @@ function stopCronJobs() {
         const work_day = store.get(`work-day-${uid}`) || [];
         store.set(`data-user-${uid}`, userActivityData);
         const synchronizeData = store.get(`data-user-${uid}`) || { summaries: [], activities: [] };
-        let data = [];
-
-        let groupedActivities = [];
-        let usedActivities = new Set(); // Para evitar duplicados
-
-        synchronizeData.summaries.forEach((summary, index) => {
-          let summaryPartnerId = summary.partner_id[0];
-          let nextSummary = synchronizeData.summaries[index + 1];
-
-          let activitiesForSummary = synchronizeData.activities
-            .filter(activity => 
-              activity.partner_id[0] === summaryPartnerId && 
-              !usedActivities.has(activity.id) // Evitamos reusar actividades
-            )
-            .map(activity => {
-              usedActivities.add(activity.id);
-              return activity.id;
-            });
-
-          // Si el siguiente summary tiene el mismo partner_id, separamos correctamente
-          if (nextSummary && nextSummary.partner_id[0] === summaryPartnerId) {
-            groupedActivities.push([activitiesForSummary[0]]); // Solo el primer elemento en un nuevo grupo
-            activitiesForSummary.shift(); // Eliminamos el primero del array original
-          }
-
-          // Agregamos el resto de actividades (si quedan)
-          if (activitiesForSummary.length > 0) {
-            groupedActivities.push(activitiesForSummary);
-          }
-        });
-
-        synchronizeData.summaries.forEach((element, index) => {
-          
-          const activity = synchronizeData.activities.find(rec => 
-            rec.partner_id[0] === element.partner_id[0] && rec.description !== false              
-          );
-
-          const activity_task = synchronizeData.activities.find(rec => 
-            rec.partner_id[0] === element.partner_id[0] && rec.task_id !== false              
-          );
-
-          const activity_brand = synchronizeData.activities.find(rec => 
-            rec.partner_id[0] === element.partner_id[0] && rec.brand_id !== false
-          );
-
-          const todayFormatted = new Date().toLocaleDateString('en-US');
-          const activitiesForSummary = groupedActivities[index] || [];
-          const data_work_day = {
-            client: { id: element.partner_id[0], name: element.partner_id[1] },
-            date: todayFormatted,
-            startWork: convertDate(element.start_time.split(' ')[1]),
-            endWork: convertDate(element.end_time.split(' ')[1]),
-            timeWorked: element.total_hours,
-            task: activity_task ? activity_task.task_id[1] : ' ',
-            brand: activity_brand ? activity_brand.brand_id[1]  || ' ' : ' ',
-            description: activity  ? activity.description  || ' ' : ' ',
-            userId: uid,
-            odoo_id: element.id,
-            odoo_ids: activitiesForSummary
-          };
-
-          data.push(data_work_day);
-        });
-        data.sort((a, b) => a.startWork.localeCompare(b.startWork))
+        const data = buildWorkDayFromOdooData(synchronizeData, uid);
+        data.sort((a, b) => a.startWork.localeCompare(b.startWork));
         store.set(`work-day-${uid}`, data);
 
         BrowserWindow.getAllWindows().forEach(win => {
@@ -417,37 +457,34 @@ function stopCronJobs() {
       }
     });
   });
-  //#NOTE Actulización con mensajes de información, solo son mensajes informativos
-  // // // autoUpdater.on("update-available", (info) => {
-  // // //   nodeNotifier.notify({
-  // // //     title: 'Actualización disponible',
-  // // //     message: 'Hay una actualización disponible para la aplicación',
-  // // //     icon: path.join(__dirname, './src/assets/img/timer-ticker-ico.png'),
-  // // //     sound: true,
-  // // //     wait: true
-  // // //   });
-  // // //   autoUpdater.downloadUpdate(); 
-  // // //   tray.setToolTip('comenzando la descarga'); // Descarga la actualización
-  // // // });
-  
-  // // // autoUpdater.on("update-downloaded", (info) => {
-  // // //   nodeNotifier.notify({
-  // // //     title: 'Actualización descargada',
-  // // //     message: 'La actualización ha sido descargada y está lista para ser instalada, cierra la aplicación para instalarla',
-  // // //     icon: path.join(__dirname, './src/assets/img/timer-ticker-ico.png'),
-  // // //     sound: true,
-  // // //     wait: true
-  // // //   });
-  // // // });
+  autoUpdater.on('update-available', () => {
+    broadcastUpdateStatus({ state: 'available' });
+    if (tray) {
+      tray.setToolTip('Actualización disponible. Descargando...');
+    }
+  });
+
+  autoUpdater.on('update-not-available', () => {
+    broadcastUpdateStatus({ state: 'idle' });
+  });
 
   autoUpdater.on('download-progress', (progressObj) => {
     const { percent } = progressObj;
-  
-    tray.setToolTip(`Descargando actualización... ${percent.toFixed(2)}%`);
- 
+    broadcastUpdateStatus({ state: 'downloading', percent });
+    if (tray) {
+      tray.setToolTip(`Descargando actualización... ${percent.toFixed(2)}%`);
+    }
   });
 
-  autoUpdater.on("error", (info) => {
+  autoUpdater.on('update-downloaded', () => {
+    broadcastUpdateStatus({ state: 'downloaded' });
+    setTimeout(() => {
+      autoUpdater.quitAndInstall(true, true);
+    }, 5000);
+  });
+
+  autoUpdater.on('error', (info) => {
+    broadcastUpdateStatus({ state: 'error', message: String(info) });
     nodeNotifier.notify({
       title: 'Error en la actualización',
       message: `Error durante la actualización: ${info}`,
@@ -455,23 +492,6 @@ function stopCronJobs() {
       sound: true,
       wait: true
     });
-
-  autoUpdater.on('update-downloaded', async (info) => {
-    // Instalar de inmediato sin preguntar:
-    // autoUpdater.quitAndInstall(); return;
-
-    const res = await dialog.showMessageBox({
-      type: 'question',
-      buttons: ['Reiniciar ahora', 'Luego'],
-      defaultId: 0,
-      cancelId: 1,
-      message: 'Actualización lista',
-      detail: `Se instalará la versión ${info.version}. La app se reiniciará.`,
-    });
-    if (res.response === 0) autoUpdater.quitAndInstall();
-  });
-
-
   });
 
   ipcMain.on('minimize-login-window', () => {
@@ -652,13 +672,17 @@ function stopCronJobs() {
     logger.info(`Evento de temporizador recibido: ${timerEventData}`);
     getMainWindow().webContents.send('timer-event', timerEventData);
     if (timerEventData === 'pause') {
+      isPaused = true;
       logger.info('Timer en pausa, deteniendo cron jobs');
       stopCronJobs();
       updateActivityPresence();
+      schedulePauseAutoResume();
     }
 
     if (timerEventData === 'resume') {
-      setupCronJobs();
+      isPaused = false;
+      clearPauseAutoResume();
+      setupCronJobs(currentNotificationMinutes);
       updateActivityPresence();
     }
   })
@@ -686,59 +710,8 @@ function stopCronJobs() {
         // console.timeEnd('time-function-sendLocalData');
         const synchronizeData = await getUserActivity();
         // console.log(synchronizeData)
-        let data = [];
-
-        let groupedActivities = [];
-        let usedActivities = new Set(); // Para evitar duplicados
-
-        synchronizeData.summaries.forEach((summary, index) => {
-          let summaryPartnerId = summary.partner_id[0];
-          let nextSummary = synchronizeData.summaries[index + 1];
-
-          let activitiesForSummary = synchronizeData.activities
-            .filter(activity => 
-              activity.partner_id[0] === summaryPartnerId && 
-              !usedActivities.has(activity.id) // Evitamos reusar actividades
-            )
-            .map(activity => {
-              usedActivities.add(activity.id);
-              return activity.id;
-            });
-
-          // Si el siguiente summary tiene el mismo partner_id, separamos correctamente
-          if (nextSummary && nextSummary.partner_id[0] === summaryPartnerId) {
-            groupedActivities.push([activitiesForSummary[0]]); // Solo el primer elemento en un nuevo grupo
-            activitiesForSummary.shift(); // Eliminamos el primero del array original
-          }
-
-          // Agregamos el resto de actividades (si quedan)
-          if (activitiesForSummary.length > 0) {
-            groupedActivities.push(activitiesForSummary);
-          }
-        });
-
-        synchronizeData.summaries.forEach((element, index) => {
-          
-          const activity = synchronizeData.activities.find(rec => 
-            rec.partner_id[0] === element.partner_id[0] && rec.description !== false              
-          );
-          const todayFormatted = new Date().toLocaleDateString('en-US');
-          const activitiesForSummary = groupedActivities[index] || [];
-          const data_work_day = {
-            client: { id: element.partner_id[0], name: element.partner_id[1] },
-            date: todayFormatted,
-            startWork: convertDate(element.start_time.split(' ')[1]),
-            endWork: convertDate(element.end_time.split(' ')[1]),
-            timeWorked: element.total_hours,
-            description: activity  ? activity.description  || ' ' : ' ',
-            userId: uid,
-            odoo_id: element.id,
-            odoo_ids: activitiesForSummary
-          };
-
-          data.push(data_work_day);
-        });
-        data.sort((a, b) => a.startWork.localeCompare(b.startWork))
+        const data = buildWorkDayFromOdooData(synchronizeData, uid);
+        data.sort((a, b) => a.startWork.localeCompare(b.startWork));
         store.set(`work-day-${uid}`, data);
 
         BrowserWindow.getAllWindows().forEach(win => {
@@ -757,9 +730,52 @@ function stopCronJobs() {
       activityData.presence = { status: 'active', timestamp: new Date().toISOString().replace('T',' ').substring(0, 19) };
   
       const client_data = store.get('clients').find(rec => rec.id == client);
-      const task_name = client_data['tasks'].find( rec => rec.id === parseInt(task))?.name || ' ';
+      const selectedTask = client_data?.tasks?.find(rec => rec.id === parseInt(task));
+      const task_name = selectedTask?.name || ' ';
       const brand_name = client_data['brands'].find( rec => rec.id === parseInt(brand))?.name || ' ';
       let lastClient = null;
+      
+      let taskTags = [];
+      const rawTaskTags = selectedTask?.task_tags;
+      if (Array.isArray(rawTaskTags)) {
+        taskTags = rawTaskTags
+          .map(tag => String(tag).trim().toLowerCase())
+          .filter(Boolean);
+      } else if (typeof rawTaskTags === 'string') {
+        taskTags = rawTaskTags
+          .split(',')
+          .map(tag => tag.trim().toLowerCase())
+          .filter(Boolean);
+      }
+      const isPauseTask = taskTags.includes('pausa');
+      if (isPauseTask) {
+        if (selectedTask && Number.isFinite(Number(selectedTask.time_notification))) {
+          pauseAutoResumeMinutes = Number(selectedTask.time_notification);
+          if (isPaused) {
+          logger.info(`Pausa reanudar notificación en: ${pauseAutoResumeMinutes} minutos`);
+            schedulePauseAutoResume();
+          }
+        } else {
+          pauseAutoResumeMinutes = null;
+          clearPauseAutoResume();
+        }
+      } else {
+        pauseAutoResumeMinutes = null;
+        clearPauseAutoResume();
+
+        if (selectedTask && Number.isFinite(Number(selectedTask.time_notification))) {
+          const newInterval = Number(selectedTask.time_notification);
+          logger.info(`Intervalo de notificación para la tarea: ${newInterval} minutos`);
+          if (currentNotificationMinutes !== newInterval) {
+            currentNotificationMinutes = newInterval;
+            stopCronJobs();
+            setupCronJobs(currentNotificationMinutes);
+          }
+        } else {
+          currentNotificationMinutes = null;
+          stopCronJobs();
+        }
+      }
       
       if (pause > 0) {
         const lastPause = work_day.find(rec => rec.pause === true);
@@ -994,7 +1010,7 @@ function stopCronJobs() {
   ipcMain.on('login-success', () => {
     createMainWindow();
     session = true;
-    setupCronJobs();
+    setupCronJobs(currentNotificationMinutes);
 
     const loginWindow = getLoginWindow();
     if (loginWindow) {

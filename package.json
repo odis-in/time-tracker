@@ -7,24 +7,27 @@
     "start": "electron .",
     "pack": "build --dir",
     "dist": "electron-builder",
-    "prebuild": "find dist/ -type f -exec xattr -cr {} +",
-    "postbuild": "xattr -cr dist/mac-arm64/Time\\ Tracker.app"
+    "release:mac": "electron-builder --mac universal --publish always",
+    "prebuild": "[ -d dist ] && find dist/ -type f -exec xattr -cr {} + || true",
+    "postbuild": "find dist -type d -name \"Time Tracker.app\" -exec xattr -cr {} + || true"
   },
   "repository": "https://github.com/odis-in/time-tracker",
-  "publish": [
-    {
-      "provider": "github",
-      "owner": "odis-in",
-      "repo": "time-tracker",
-      "releaseType": "release"
-    }
-  ],
   "author": "devcs",
   "license": "ISC",
   "build": {
     "appId": "com.odis.time-tracker",
     "asar": true,
     "productName": "Time Tracker",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "odis-in",
+        "repo": "time-tracker",
+        "releaseType": "release"
+      }
+    ],
+    "generateUpdatesFilesForAllChannels": true,
+    "detectUpdateChannel": true,
     "mac": {
       "category": "public.app-category.productivity",
       "target": [
@@ -48,7 +51,7 @@
       "gatekeeperAssess": true,
       "icon": "./src/assets/img/timer-ticker-ico.icns",
       "artifactName": "Time Tracker-${version}-universal-mac.${ext}",
-      "identity": "Elmer Padilla (Y2G286NQ96)",
+      "identity": null,
       "extendInfo": {
         "ElectronTeamID": "Y2G286NQ96",
         "NSCameraUsageDescription": "Time Tracker necesita usar la cámara.",
@@ -76,7 +79,7 @@
   "devDependencies": {
     "@electron/notarize": "^2.5.0",
     "electron": "^40.4.1",
-    "electron-builder": "^26.8.1",
+    "electron-builder": "^22.14.13",
     "request-promise": "*"
   },
   "dependencies": {

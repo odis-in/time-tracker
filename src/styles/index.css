@@ -433,6 +433,23 @@ tr:nth-child(even) {
   /*bottom: 5px; */
 }
 
+.update-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: #eaf3ff;
+  color: #1b4a7a;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.update-banner__percent {
+  font-weight: 600;
+}
+
 .hidden {
   display: none;
 }
