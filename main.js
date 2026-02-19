@@ -456,6 +456,21 @@ function stopCronJobs() {
       wait: true
     });
 
+  autoUpdater.on('update-downloaded', async (info) => {
+    // Instalar de inmediato sin preguntar:
+    // autoUpdater.quitAndInstall(); return;
+
+    const res = await dialog.showMessageBox({
+      type: 'question',
+      buttons: ['Reiniciar ahora', 'Luego'],
+      defaultId: 0,
+      cancelId: 1,
+      message: 'Actualización lista',
+      detail: `Se instalará la versión ${info.version}. La app se reiniciará.`,
+    });
+    if (res.response === 0) autoUpdater.quitAndInstall();
+  });
+
 
   });
 

@@ -1,0 +1,12 @@
+{
+  "logFormatVersion": 1,
+  "jobId": "6dbd662b-e97c-4c1b-8fe8-6b7c3a874e96",
+  "status": "Rejected",
+  "statusSummary": "Team is not yet configured for notarization. Please contact Developer Programs Support at developer.apple.com under the topic Development and Technical / Other Development or Technical Questions.",
+  "statusCode": 7000,
+  "archiveFilename": "TimeTracker-notarize.zip",
+  "uploadDate": "2025-11-09T22:15:45.097Z",
+  "sha256": "88e5c087c2d8e4676aca9c410797e80fa52956617345ef54f632fef1a1b5376d",
+  "ticketContents": null,
+  "issues": null
+}

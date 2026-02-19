@@ -1,6 +1,6 @@
 {
   "name": "time-tracker",
-  "version": "1.2.8",
+  "version": "1.2.9",
   "description": "time-tracker app",
   "main": "main.js",
   "scripts": {
@@ -11,42 +11,52 @@
     "postbuild": "xattr -cr dist/mac-arm64/Time\\ Tracker.app"
   },
   "repository": "https://github.com/odis-in/time-tracker",
-  "publish": {
-    "provider": "github",
-    "releaseType": "release"
-  },
+  "publish": [
+    {
+      "provider": "github",
+      "owner": "odis-in",
+      "repo": "time-tracker",
+      "releaseType": "release"
+    }
+  ],
   "author": "devcs",
   "license": "ISC",
   "build": {
     "appId": "com.odis.time-tracker",
     "asar": true,
     "productName": "Time Tracker",
+
     "mac": {
       "category": "public.app-category.productivity",
       "target": [
-        "dmg",
-        "zip",
-        "mas"
+        { "target": "zip", "arch": ["universal"] },
+        { "target": "dmg", "arch": ["universal"] }
       ],
       "hardenedRuntime": true,
       "entitlements": "entitlements.mac.plist",
       "entitlementsInherit": "entitlements.mac.plist",
+      "preAutoEntitlements": false,  
       "gatekeeperAssess": true,
-      "icon": "./src/assets/img/timer-ticker-ico.icns"
+      "icon": "./src/assets/img/timer-ticker-ico.icns",
+      "artifactName": "Time Tracker-${version}-universal-mac.${ext}",
+      "identity": "Elmer Padilla (Y2G286NQ96)",
+      "extendInfo": { 
+        "ElectronTeamID": "Y2G286NQ96",
+        "NSCameraUsageDescription": "Time Tracker necesita usar la cámara.",
+        "NSMicrophoneUsageDescription": "Time Tracker necesita usar el micrófono.",
+        "NSAppleEventsUsageDescription": "Time Tracker requiere acceso a AppleScript para automatizar acciones."
+      }
+      
     },
-    "mas": {
-      "entitlements": "entitlements.mas.plist",
-      "entitlementsInherit": "entitlements.mas.inherit.plist",
-      "hardenedRuntime": true,
-      "provisioningProfile": "build/provisioningProfileTimeTracker.provisionprofile"
-    },
+    
+
+    "mas": false,
+
     "afterPack": "./scripts/remove-xattrs.js",
-    "afterSign": null,
+    "afterSign": "./build/notarize.js",
+
     "linux": {
-      "target": [
-        "AppImage",
-        "deb"
-      ]
+      "target": ["AppImage", "deb"]
     },
     "win": {
       "icon": "./src/assets/img/timer-ticker-ico.ico",
