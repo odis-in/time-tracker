@@ -6,7 +6,7 @@ const path = require('path');
 // const {  createModalWindow, getModalWindow } = require('./src/utils/windowaManager');
 
 const isMac = process.platform === 'darwin';
-const MAC_NOTIFICATION_TIMEOUT_SECONDS = 60;
+const MAC_NOTIFICATION_TIMEOUT_SECONDS = 60; // macOS Notification Center timeout in seconds
 const MAC_FALLBACK_TIMEOUT_MS = (MAC_NOTIFICATION_TIMEOUT_SECONDS + 5) * 1000;
 const MAC_RESPONSE_WINDOW_MS = MAC_NOTIFICATION_TIMEOUT_SECONDS * 1000;
 

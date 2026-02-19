@@ -1,5 +1,5 @@
 const { getSendScreenshot } = require('../odoo/getSendScreenshot');
-const { captureScreen } = require('./captureScreen');
+const { captureScreen, getScreenCapturePermissionStatus } = require('./captureScreen');
 const { handleData } = require('./dataManager');
 const { autoUpdater } = require('electron-updater');
 const { systemLogger } = require('./systemLogs');
@@ -17,23 +17,42 @@ function tryCheckForUpdates() {
 
 async function checkDataAndSend(activityData) {
   tryCheckForUpdates();
-  const send_screenshot = await getSendScreenshot()
+  const send_screenshot = await getSendScreenshot();
   try {
-    //Volver a capturar la pantalla si no se ha capturado
-    if (activityData.screenshot == null) {
+    // Volver a capturar la pantalla si no se ha capturado y el servidor la requiere.
+    if (send_screenshot && activityData.screenshot == null) {
       const result = await captureScreen(activityData);
-      activityData.screenshot = { path: result };
+      if (result) {
+        activityData.screenshot = { path: result };
+      }
     }
     
-    if (!activityData.presence || !activityData.screenshot) {
-      return { status: 400, message: `${activityData.presence.status}  and ${activityData.screenshot}` };
+    if (!activityData.presence) {
+      return { status: 400, message: 'No hay estado de presencia para enviar' };
+    }
+
+    if (send_screenshot && (!activityData.screenshot || !activityData.screenshot.path)) {
+      const permissionStatus = getScreenCapturePermissionStatus();
+      const isMacPermissionIssue =
+        process.platform === 'darwin' && permissionStatus !== 'granted';
+
+      if (isMacPermissionIssue) {
+        return {
+          status: 403,
+          message:
+            `Captura bloqueada. Habilita Screen Recording para Time Tracker en ` +
+            `System Settings > Privacy & Security > Screen Recording. Estado actual: ${permissionStatus}`,
+        };
+      }
+
+      return { status: 400, message: 'No se pudo obtener la captura de pantalla requerida' };
     }
 
     const isInactive = activityData.presence.status === 'inactive';
     const dataToSend = {
       timestamp: activityData.presence.timestamp,
       presence_status: activityData.presence.status,
-      screenshot: send_screenshot ? activityData.screenshot.path : null,
+      screenshot: send_screenshot ? activityData.screenshot?.path || null : null,
       latitude: activityData.latitude,
       longitude: activityData.longitude,
       ip_address: activityData.ipAddress,

@@ -765,9 +765,11 @@ function buildWorkDayFromOdooData(synchronizeData, uid) {
 
         if (selectedTask && Number.isFinite(Number(selectedTask.time_notification))) {
           const newInterval = Number(selectedTask.time_notification);
+          currentNotificationMinutes = newInterval;
           logger.info(`Intervalo de notificación para la tarea: ${newInterval} minutos`);
-          if (currentNotificationMinutes !== newInterval) {
-            currentNotificationMinutes = newInterval;
+          // Reiniciar el contador siempre al enviar cambio de tarea.
+          if (!regPrevHour) {
+            logger.info('Reiniciando contador de notificación por cambio de tarea');
             stopCronJobs();
             setupCronJobs(currentNotificationMinutes);
           }
@@ -889,11 +891,11 @@ function buildWorkDayFromOdooData(synchronizeData, uid) {
 
       if (!statusConnection.status)  {
         logger.warn(`Not connection to server | message: ${statusConnection.message} | data will be saved locally`);
-        captureScreen(activityData)
+        await captureScreen(activityData);
         const dataToSend = {
           timestamp: activityData.presence.timestamp,
           presence_status: activityData.presence.status,
-          screenshot: activityData.screenshot.path,
+          screenshot: activityData.screenshot?.path || null,
           latitude: activityData.latitude,
           longitude: activityData.longitude,
           ip_address: activityData.ipAddress,
@@ -921,7 +923,14 @@ function buildWorkDayFromOdooData(synchronizeData, uid) {
 
       
     
-      if (activityDataLog.status === 400 ){
+      if (activityDataLog.status !== 200 ){
+        logger.warn(`No se enviaron datos de actividad al servidor: ${activityDataLog.message || activityDataLog.error || 'sin detalle'}`);
+        BrowserWindow.getAllWindows().forEach(win => {
+          win.webContents.send('error-occurred', {
+            message: activityDataLog.message || 'No se pudo enviar la actividad',
+            stack: '',
+          });
+        });
         BrowserWindow.getAllWindows().forEach(win => {
           win.webContents.send('work-day-updated', work_day);
         });  
