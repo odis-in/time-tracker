@@ -50,7 +50,6 @@
       "gatekeeperAssess": true,
       "icon": "./src/assets/img/timer-ticker-ico.icns",
       "artifactName": "Time Tracker-${version}-universal-mac.${ext}",
-      "identity": null,
       "extendInfo": {
         "ElectronTeamID": "Y2G286NQ96",
         "NSCameraUsageDescription": "Time Tracker necesita usar la cámara.",
