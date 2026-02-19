@@ -77,7 +77,7 @@
   "devDependencies": {
     "@electron/notarize": "^2.5.0",
     "electron": "^40.4.1",
-    "electron-builder": "^22.14.13",
+    "electron-builder": "^26.8.1",
     "request-promise": "*"
   },
   "dependencies": {
