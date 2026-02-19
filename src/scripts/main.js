@@ -872,6 +872,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	const usernameDiv = document.getElementById('username');
 	const profileImage = document.getElementById('profileImage');
+	const versionLabel = document.getElementById('app-version');
 	if (usernameDiv) {
 		usernameDiv.textContent = localStorage.getItem('name')
 		window.addEventListener('storage', (event) => {
@@ -891,6 +892,16 @@ document.addEventListener('DOMContentLoaded', () => {
 				profileImage.src = imageBase64;
 			}
 		});
+	}
+
+	if (versionLabel) {
+		ipcRenderer.invoke('get-app-version')
+			.then((version) => {
+				versionLabel.textContent = `v${version}`;
+			})
+			.catch(() => {
+				versionLabel.textContent = 'v-';
+			});
 	}
 
 	renderWorkDayData();
@@ -956,5 +967,4 @@ function updateTime() {
   
   setInterval(updateTime, 1000);
 updateTime();
-
 

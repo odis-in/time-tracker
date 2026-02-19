@@ -996,6 +996,10 @@ function buildWorkDayFromOdooData(synchronizeData, uid) {
     return {clients, pauses};
   });
 
+  ipcMain.handle('get-app-version', () => {
+    return app.getVersion();
+  });
+
   ipcMain.on('delete_data', async () => {
     const store = await getStore();
     const { uid } = await getCredentials(['uid']);
