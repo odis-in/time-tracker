@@ -1,6 +1,6 @@
 {
   "name": "time-tracker",
-  "version": "1.3.4",
+  "version": "1.3.5",
   "description": "time-tracker app",
   "main": "main.js",
   "scripts": {
