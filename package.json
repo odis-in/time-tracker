@@ -47,7 +47,7 @@
       "hardenedRuntime": true,
       "entitlements": "entitlements.mac.plist",
       "entitlementsInherit": "entitlements.mac.plist",
-      "gatekeeperAssess": true,
+      "gatekeeperAssess": false,
       "icon": "./src/assets/img/timer-ticker-ico.icns",
       "artifactName": "Time Tracker-${version}-universal-mac.${ext}",
       "extendInfo": {
