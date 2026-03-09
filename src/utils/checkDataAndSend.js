@@ -15,7 +15,7 @@ function tryCheckForUpdates() {
   }
 }
 
-async function checkDataAndSend(activityData) {
+async function checkDataAndSend(activityData, regPrevHour = false) {
   tryCheckForUpdates();
   const send_screenshot = await getSendScreenshot();
   try {
@@ -49,7 +49,8 @@ async function checkDataAndSend(activityData) {
     }
 
     const isInactive = activityData.presence.status === 'inactive';
-    const dataToSend = {
+    const dataToSend = [];
+    dataToSend.push({
       timestamp: activityData.presence.timestamp,
       presence_status: activityData.presence.status,
       screenshot: send_screenshot ? activityData.screenshot?.path || null : null,
@@ -61,7 +62,23 @@ async function checkDataAndSend(activityData) {
       task_id: isInactive ? false : (activityData.task_id || null),
       brand_id: isInactive ? false : (activityData.brand_id || null),
       pause_id: activityData.pause_id || null,
-    };
+    });
+
+    if (regPrevHour) {
+      dataToSend.push({
+        timestamp: regPrevHour.timeEnd,
+        presence_status: activityData.presence.status,
+        screenshot: send_screenshot ? activityData.screenshot.path : null,
+        latitude: activityData.latitude,
+        longitude: activityData.longitude,
+        ip_address: activityData.ipAddress,
+        partner_id: activityData.partner_id || null,
+        description: activityData.description || null,
+        task_id: isInactive ? false : (activityData.task_id || null),
+        brand_id: isInactive ? false : (activityData.brand_id || null),
+        pause_id: activityData.pause_id || null,
+      });
+    }
     
     const result = await handleData(dataToSend);
     

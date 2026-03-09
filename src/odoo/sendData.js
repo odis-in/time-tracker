@@ -17,7 +17,10 @@ async function sendData(modelName, activityData) {
             models = xmlrpc.createClient({ url: `${url}/xmlrpc/2/object` });
         }
 
-        activityData.user_id = uid;
+        // activityData.user_id = uid;
+        activityData.forEach(item => {
+            item.user_id = uid;
+        });
 
         return new Promise((resolve, reject) => {
             models.methodCall('execute_kw', [db, uid, password, modelName, 'create', [activityData]], (err, result) => {
