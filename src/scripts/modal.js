@@ -5,6 +5,7 @@ const logger = systemLogger();
 let timerEventData = null;
 let currentError = false;
 let prevHour = false;
+let isSubmitting = false;
 function toggleAmPm(button) {
     if (button.textContent === 'AM') {
       button.textContent = 'PM';
@@ -25,6 +26,8 @@ function onCurrentError(message) {
     button.style.opacity = '1';
     closeButton.style.pointerEvents = 'auto';
     closeButton.style.opacity = '1';
+    button.disabled = false;
+    isSubmitting = false;
     messageError.textContent = message;
     ipcRenderer.send('error-modal', message);
 }
@@ -259,6 +262,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const messageError = document.querySelector('#error-message');
     document.getElementById('modalForm').addEventListener('submit', async (event) => {
         event.preventDefault();
+        if (isSubmitting) {
+            return;
+        }
+        isSubmitting = true;
         const svgElement = document.getElementById('svg-loading');
         const buttonText = document.getElementById('button-text');
 
@@ -272,6 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
             closeButton.style.opacity = '0.5'; // Opcional: lo hace visualmente "deshabilitado"
             button.style.opacity = '0.5'; // Opcional: lo hace visualmente "deshabilitado"
             button.style.pointerEvents = 'none'; // Deshabilita el botón
+            button.disabled = true;
             messageError.textContent = ''; 
 
         }
@@ -323,6 +331,8 @@ document.addEventListener('DOMContentLoaded', () => {
             closeButton.style.opacity = '1';
             button.style.pointerEvents = 'auto';
             button.style.opacity = '1';
+            button.disabled = false;
+            isSubmitting = false;
             divPause[0].style.display = 'none';
             pauseSelect.innerHTML = '';
 
@@ -358,6 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const messageError = document.querySelector('#error-message');
         messageError.textContent = '';
         currentError = false;
+        isSubmitting = false;
         showClients();     
     });
 

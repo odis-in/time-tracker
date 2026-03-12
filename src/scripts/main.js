@@ -782,10 +782,14 @@ async function renderWorkDayData() {
 
 
 
-    const filteredData = workDayData.filter(item => {
-        const itemDate = item.date;
-        return itemDate == todayFormatted;
-    });
+	const filteredData = workDayData.filter(item => {
+		const itemDate = item.date;
+
+		return (
+			itemDate == todayFormatted &&
+			item.client?.name?.toLowerCase() !== 'inactivo'
+		);
+	});
 
     localStorage.setItem('workDayData', JSON.stringify(filteredData));
 
