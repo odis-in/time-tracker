@@ -287,8 +287,20 @@ function buildWorkDayFromOdooData(synchronizeData, uid, clients) {
       current.client.id === clientId &&
       current.brand === brandName &&
       current.task === taskName;
+
+    
+    const prevActivity = activitiesSorted[index - 1];
+    const prevActivityTime = toDate(prevActivity?.timestamp);
+    
+    let keepSameGroupByInactive = false;
+    if ( status === 'inactive' && nextActivity?.presence_status === 'active' ) {
+      if ( (Math.round(nextActivityTime - prevActivityTime) / 60000) <= intervalTask) {
+        keepSameGroupByInactive = true;
+      }
+    }
+
     // Crear nuevo registro si no es es del mismo grupo
-    if (!isSameGroup) {
+    if (!isSameGroup && !keepSameGroupByInactive) {
       current = {
         client: { id: clientId, name: clientName },
         date: new Date().toLocaleDateString('en-US'),
