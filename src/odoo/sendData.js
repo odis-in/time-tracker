@@ -17,26 +17,35 @@ async function sendData(modelName, activityData) {
             models = xmlrpc.createClient({ url: `${url}/xmlrpc/2/object` });
         }
 
-        // activityData.user_id = uid;
-        activityData.forEach(item => {
+        const records = Array.isArray(activityData) ? activityData : [activityData];
+
+        records.forEach(item => {
             item.user_id = uid;
         });
 
         return new Promise((resolve, reject) => {
-            models.methodCall('execute_kw', [db, uid, password, modelName, 'create', [activityData]], (err, result) => {
+            models.methodCall('execute_kw', [db, uid, password, modelName, 'create', [records]], (err, result) => {
                 if (err) {
                     console.error('Error al crear el registro en Odoo:', err);
                     reject({ status: 400, message: err.message, error: err.code });
                 } else {
-                    activityData.odoo_ids = result;
-                    resolve({ status: 200, message: 'Activity data sent', odoo_ids: activityData.odoo_ids, data: result });
+                    resolve({
+                        status: 200,
+                        message: 'Activity data sent',
+                        odoo_ids: Array.isArray(result) ? result : [result],
+                        data: result
+                    });
                 }
             });
         });
 
     } catch (error) {
         console.error('Error al enviar datos a Odoo:', error);
-        return { status: 500, message: 'Error al enviar datos', error: error.message };
+        return {
+            status: error?.status || 500,
+            message: error?.message || 'Error al enviar datos',
+            error: error?.error || error?.code || error?.message
+        };
     }
 }
 
