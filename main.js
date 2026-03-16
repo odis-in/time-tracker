@@ -48,6 +48,7 @@ let currentNotificationMinutes = null;
 let pauseAutoResumeTimeout = null;
 let pauseAutoResumeMinutes = null;
 let isPaused = false;
+let isInstallingUpdate = false;
 
 const activityData = {
   odoo_id: null,
@@ -623,8 +624,23 @@ function isConnectionRelatedFailure(result) {
   autoUpdater.on('update-downloaded', () => {
     broadcastUpdateStatus({ state: 'downloaded' });
     setTimeout(() => {
-      autoUpdater.quitAndInstall(true, true);
+      logger.info('Update downloaded, quitting to install');
+      isInstallingUpdate = true;
+      app.isQuiting = true;
+      if (tray) {
+        tray.destroy();
+      }
+      autoUpdater.quitAndInstall(false, true);
     }, 5000);
+  });
+
+  autoUpdater.on('before-quit-for-update', () => {
+    logger.info('before-quit-for-update received');
+    isInstallingUpdate = true;
+    app.isQuiting = true;
+    if (tray) {
+      tray.destroy();
+    }
   });
 
   autoUpdater.on('error', (info) => {
@@ -1236,7 +1252,7 @@ const sendDataBeforeQuit = async () => {
 };
 
 app.on('before-quit', async (event) => {
-  if (app.isQuiting) {
+  if (app.isQuiting || isInstallingUpdate) {
       return; 
   }
 
