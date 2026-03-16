@@ -11,7 +11,7 @@ const { captureScreen } = require('./src/utils/captureScreen');
 const { saveCredentials, getCredentials, clearCredentials } = require('./src/utils/crendentialManager');
 const { createLoginWindow, createMainWindow, createModalWindow, getLoginWindow, getMainWindow, getModalWindow } = require('./src/utils/windowaManager');
 const { getIpAndLocation } = require('./src/utils/getIPAddress');
-const { checkDataAndSend } = require('./src/utils/checkDataAndSend');
+const { checkDataAndSend, buildActivityEntries } = require('./src/utils/checkDataAndSend');
 const { calculateTimeDifference, convertDate } = require('./src/utils/calculateTimeDifference');
 const { sendActivityUserSummary, sendLocalData, saveDataLocally } = require('./src/utils/dataManager');
 const nodeNotifier = require('node-notifier');
@@ -481,6 +481,10 @@ function isConnectionRelatedFailure(result) {
     'failed to fetch',
     'connection',
     'xml-rpc fault',
+    'unknown xml-rpc tag',
+    '<title>',
+    'title',
+    'html',
   ].some(pattern => details.includes(pattern));
 }
 
@@ -734,7 +738,11 @@ function isConnectionRelatedFailure(result) {
 
   ipcMain.on('prev-hours', () => {
     createModalWindow();
-    getModalWindow().webContents.send('prev-hours');
+    const modalWindow = getModalWindow();
+    if (modalWindow) {
+      modalWindow.setSize(450, 560);
+      modalWindow.webContents.send('prev-hours');
+    }
   })
 
   ipcMain.on('logout', async () => {
@@ -895,6 +903,14 @@ function isConnectionRelatedFailure(result) {
       const selectedTask = client_data?.tasks?.find(rec => rec.id === parseInt(task));
       const task_name = selectedTask?.name || ' ';
       const brand_name = client_data['brands'].find( rec => rec.id === parseInt(brand))?.name || ' ';
+      const previousHourRange = regPrevHour
+        ? {
+            ...regPrevHour,
+            timeNotification: Number.isFinite(Number(selectedTask?.time_notification))
+              ? Number(selectedTask.time_notification)
+              : null,
+          }
+        : false;
       let lastClient = null;
       
       let taskTags = [];
@@ -928,7 +944,7 @@ function isConnectionRelatedFailure(result) {
         if (selectedTask && Number.isFinite(Number(selectedTask.time_notification))) {
           currentNotificationMinutes = Number(selectedTask.time_notification);
           logger.info(`Intervalo de notificación para la tarea: ${currentNotificationMinutes} minutos`);
-          if (!regPrevHour) {
+          if (!previousHourRange) {
             stopCronJobs();
             setupCronJobs(currentNotificationMinutes);
           }
@@ -1026,10 +1042,10 @@ function isConnectionRelatedFailure(result) {
 
       // }
 
-      if (regPrevHour) {
+      if (previousHourRange) {
         logger.info('Registro de hora previa');
         
-        activityData.presence = { status: 'active', timestamp: regPrevHour.timeStart};
+        activityData.presence = { status: 'active', timestamp: previousHourRange.timeStart};
         // const data_work_day = {
         //   client: client_data,
         //   brand: brand_name,
@@ -1046,23 +1062,11 @@ function isConnectionRelatedFailure(result) {
       }
 
       if (!statusConnection.status)  {
-        const dataToSend = {
-          timestamp: activityData.presence.timestamp,
-          presence_status: activityData.presence.status,
-          screenshot: activityData.screenshot?.path || null,
-          latitude: activityData.latitude,
-          longitude: activityData.longitude,
-          ip_address: activityData.ipAddress,
-          partner_id: activityData.partner_id || null,
-          description: activityData.description || null,
-          task_id: activityData.task_id || null,
-          brand_id : activityData.brand_id || null,
-          pause_id : activityData.pause_id || null,
-        };
+        const dataToSend = buildActivityEntries(activityData, previousHourRange);
         logger.warn(`Not connection to server | message: ${statusConnection.message} | data will be saved locally`);
         captureScreen(activityData)
        
-        saveDataLocally(dataToSend, 'offlineData');
+        await saveDataLocally(dataToSend, 'offlineData');
         const updatedWorkDay = updateLocalWorkDay(work_day, {
           clientData: client_data,
           brandName: brand_name,
@@ -1070,7 +1074,7 @@ function isConnectionRelatedFailure(result) {
           description,
           uid,
           timestamp: activityData.presence.timestamp,
-          regPrevHour,
+          regPrevHour: previousHourRange,
         });
         store.set(`work-day-${uid}`, updatedWorkDay);
         BrowserWindow.getAllWindows().forEach(win => {
@@ -1084,7 +1088,7 @@ function isConnectionRelatedFailure(result) {
       }
       
       const [activityDataLog] = await Promise.all([
-        checkDataAndSend(activityData, regPrevHour),
+        checkDataAndSend(activityData, previousHourRange),
         // sendActivityUserSummary(),
       ]);
 
@@ -1094,22 +1098,12 @@ function isConnectionRelatedFailure(result) {
         logger.warn(`No se enviaron datos de actividad al servidor: ${activityDataLog.message || activityDataLog.error || 'sin detalle'}`);
 
         if (isConnectionRelatedFailure(activityDataLog)) {
-          const dataToSend = {
-            timestamp: activityData.presence.timestamp,
-            presence_status: activityData.presence.status,
-            screenshot: activityData.screenshot?.path || null,
-            latitude: activityData.latitude,
-            longitude: activityData.longitude,
-            ip_address: activityData.ipAddress,
-            partner_id: activityData.partner_id || null,
-            description: activityData.description || null,
-            task_id: activityData.task_id || null,
-            brand_id : activityData.brand_id || null,
-            pause_id : activityData.pause_id || null,
-          };
+          const dataToSend = buildActivityEntries(activityData, previousHourRange);
 
           logger.warn('La conexion se perdio durante el envio. Guardando datos localmente');
-          await saveDataLocally(dataToSend, 'offlineData');
+          if (!activityDataLog.savedLocally) {
+            await saveDataLocally(dataToSend, 'offlineData');
+          }
           const updatedWorkDay = updateLocalWorkDay(work_day, {
             clientData: client_data,
             brandName: brand_name,
@@ -1117,7 +1111,7 @@ function isConnectionRelatedFailure(result) {
             description,
             uid,
             timestamp: activityData.presence.timestamp,
-            regPrevHour,
+            regPrevHour: previousHourRange,
           });
           store.set(`work-day-${uid}`, updatedWorkDay);
           BrowserWindow.getAllWindows().forEach(win => {

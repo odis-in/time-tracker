@@ -5,6 +5,79 @@ const { autoUpdater } = require('electron-updater');
 const { systemLogger } = require('./systemLogs');
 const logger = systemLogger();
 
+function toActivityDate(rawValue) {
+  if (!rawValue) return null;
+  let normalized = String(rawValue).trim();
+  if (normalized.includes(' ') && !normalized.includes('T')) {
+    normalized = normalized.replace(' ', 'T');
+  }
+  if (!/[zZ]$|[+\-]\d{2}:\d{2}$/.test(normalized)) {
+    normalized = `${normalized}Z`;
+  }
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatActivityDate(date) {
+  return date.toISOString().replace('T', ' ').substring(0, 19);
+}
+
+function buildPreviousHourTimestamps(regPrevHour) {
+  const startDate = toActivityDate(regPrevHour?.timeStart);
+  const endDate = toActivityDate(regPrevHour?.timeEnd);
+
+  if (!startDate || !endDate || endDate <= startDate) {
+    return regPrevHour?.timeStart ? [regPrevHour.timeStart] : [];
+  }
+
+  const intervalMinutes = Number(regPrevHour?.timeNotification);
+  if (!Number.isFinite(intervalMinutes) || intervalMinutes <= 0) {
+    return [formatActivityDate(startDate), formatActivityDate(endDate)];
+  }
+
+  const timestamps = [formatActivityDate(startDate)];
+  let cursor = startDate.getTime();
+  const intervalMs = intervalMinutes * 60 * 1000;
+
+  while (cursor + intervalMs < endDate.getTime()) {
+    cursor += intervalMs;
+    timestamps.push(formatActivityDate(new Date(cursor)));
+  }
+
+  const formattedEnd = formatActivityDate(endDate);
+  if (timestamps[timestamps.length - 1] !== formattedEnd) {
+    timestamps.push(formattedEnd);
+  }
+
+  return timestamps;
+}
+
+function buildActivityEntries(activityData, regPrevHour = false, options = {}) {
+  const { includeScreenshot = true } = options;
+  const isInactive = activityData.presence.status === 'inactive';
+  const baseEntry = {
+    presence_status: activityData.presence.status,
+    screenshot: includeScreenshot ? activityData.screenshot?.path || null : null,
+    latitude: activityData.latitude,
+    longitude: activityData.longitude,
+    ip_address: activityData.ipAddress,
+    partner_id: activityData.partner_id || null,
+    description: activityData.description || null,
+    task_id: isInactive ? false : (activityData.task_id || null),
+    brand_id: isInactive ? false : (activityData.brand_id || null),
+    pause_id: activityData.pause_id || null,
+  };
+
+  const timestamps = regPrevHour
+    ? buildPreviousHourTimestamps(regPrevHour)
+    : [activityData.presence.timestamp];
+
+  return timestamps.map((timestamp) => ({
+    ...baseEntry,
+    timestamp,
+  }));
+}
+
 function tryCheckForUpdates() {
   try {
     logger.info('Comprobando actualizaciones');
@@ -48,37 +121,9 @@ async function checkDataAndSend(activityData, regPrevHour = false) {
       return { status: 400, message: 'No se pudo obtener la captura de pantalla requerida' };
     }
 
-    const isInactive = activityData.presence.status === 'inactive';
-    const dataToSend = [];
-    dataToSend.push({
-      timestamp: activityData.presence.timestamp,
-      presence_status: activityData.presence.status,
-      screenshot: send_screenshot ? activityData.screenshot?.path || null : null,
-      latitude: activityData.latitude,
-      longitude: activityData.longitude,
-      ip_address: activityData.ipAddress,
-      partner_id: activityData.partner_id || null,
-      description: activityData.description || null,
-      task_id: isInactive ? false : (activityData.task_id || null),
-      brand_id: isInactive ? false : (activityData.brand_id || null),
-      pause_id: activityData.pause_id || null,
+    const dataToSend = buildActivityEntries(activityData, regPrevHour, {
+      includeScreenshot: send_screenshot,
     });
-
-    if (regPrevHour) {
-      dataToSend.push({
-        timestamp: regPrevHour.timeEnd,
-        presence_status: activityData.presence.status,
-        screenshot: send_screenshot ? activityData.screenshot.path : null,
-        latitude: activityData.latitude,
-        longitude: activityData.longitude,
-        ip_address: activityData.ipAddress,
-        partner_id: activityData.partner_id || null,
-        description: activityData.description || null,
-        task_id: isInactive ? false : (activityData.task_id || null),
-        brand_id: isInactive ? false : (activityData.brand_id || null),
-        pause_id: activityData.pause_id || null,
-      });
-    }
     
     const result = await handleData(dataToSend);
     
@@ -100,4 +145,4 @@ async function checkDataAndSend(activityData, regPrevHour = false) {
   }
 }
 
-module.exports = { checkDataAndSend };
+module.exports = { checkDataAndSend, buildActivityEntries };

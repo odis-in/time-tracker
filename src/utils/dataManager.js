@@ -13,7 +13,11 @@ async function getStore() {
 async function saveDataLocally(activityData, key) {
     const store = await getStore();
     const savedData = store.get(key) || [];
-    savedData.push(activityData);
+    if (Array.isArray(activityData)) {
+        savedData.push(...activityData);
+    } else {
+        savedData.push(activityData);
+    }
     store.set(key, savedData);
 }
 
@@ -95,8 +99,13 @@ async function handleData(activityData) {
         return result;
     } catch (error) {
         console.error('Error al enviar datos al servidor, guardando en local:', error);
-        saveDataLocally(activityData, 'offlineData');
-        return { status: error.status, message: error.message, error: error.error };
+        await saveDataLocally(activityData, 'offlineData');
+        return {
+            status: error.status,
+            message: error.message,
+            error: error.error,
+            savedLocally: true,
+        };
     }
 
 
