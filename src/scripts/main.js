@@ -799,7 +799,7 @@ async function renderWorkDayData() {
     tbody.innerHTML = '';
     if (filteredData.length === 0 ) {
         const emptyRow = document.createElement('tr');
-        emptyRow.innerHTML = `<td colspan="5">No hay datos disponibles</td>`;
+        emptyRow.innerHTML = `<td colspan="7">No hay datos disponibles</td>`;
         tbody.appendChild(emptyRow);
     }
 	
@@ -816,7 +816,7 @@ async function renderWorkDayData() {
 			<td class="start-time">${convertTo12HourFormat(item.startWork)}</td>
 			<td class="end-time">${convertTo12HourFormat(item.endWork)}</td>
 			<td> ${item.task} </td>
-			<td class="description">${item.description}</td>
+			<td class="description">${item.project ? item.project : ''}</td>
 			<td class="time-work">${item.timeWorked}</td>
 			`;
 			// <td style="display:flex; gap:5px;">

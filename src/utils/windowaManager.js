@@ -5,7 +5,7 @@ let loginWindow;
 let mainWindow;
 let modalWindow;
 const MODAL_DEFAULT_WIDTH = 450;
-const MODAL_DEFAULT_HEIGHT = 440;
+const MODAL_DEFAULT_HEIGHT = 530;
 
 function createLoginWindow() {
   if (loginWindow) {
@@ -162,6 +162,7 @@ function createModalWindow() {
     alwaysOnTop: true,
   });
 
+  modalWindow.setSize(MODAL_DEFAULT_WIDTH, MODAL_DEFAULT_HEIGHT);
   modalWindow.loadFile('./src/pages/modal.html');
 
   // modalWindow.on('minimize', (event) => {

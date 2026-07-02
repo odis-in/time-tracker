@@ -80,13 +80,14 @@ async function showClients() {
         const { clients } = await ipcRenderer.invoke('get-clients-and-pauses');
         const clientSelect = document.getElementById('client');
         const brandSelect = document.getElementById('brand');
+        const projectSelect = document.getElementById('project');
         const taskSelect = document.getElementById('task');
-        const descriptionInput = document.getElementById('description');
         if (!clients || clients.length === 0) {
             console.warn('No hay clientes disponibles.');
             clientSelect.innerHTML = '<option value="">No hay clientes disponibles</option>';
             taskSelect.innerHTML = '<option value="">No hay tareas disponibles</option>';
             brandSelect.innerHTML = '<option value="">No hay marcas disponibles</option>';
+            projectSelect.innerHTML = '<option value="">No hay proyectos disponibles</option>';
             return;
         }
 
@@ -131,9 +132,11 @@ async function showClients() {
 
         const updateBrands = (clientId) => {
             brandSelect.innerHTML = '';
+            projectSelect.innerHTML = '';
 
             if (!clientId) {
                 brandSelect.innerHTML = '<option value="">Selecciona un cliente primero</option>';
+                projectSelect.innerHTML = '<option value="">Selecciona un cliente primero</option>';
                 return;
             }
 
@@ -158,6 +161,17 @@ async function showClients() {
                 });
             } else {
                 brandSelect.innerHTML = '<option value="">No hay marcas disponibles</option>';
+            }
+
+            if (selectedClient && selectedClient.projects.length > 0) {
+                selectedClient.projects.forEach(project => {
+                    const option = document.createElement('option');
+                    option.value = String(project.id);
+                    option.textContent = project.name;
+                    projectSelect.appendChild(option);
+                });
+            } else {
+                projectSelect.innerHTML = '<option value="">No hay proyectos disponibles</option>';
             }
 
             if (selectedClient && selectedClient.tasks.length > 0) {
@@ -213,22 +227,6 @@ async function showClients() {
 
         brandSelect.addEventListener('change', () => {
             updateTasks(brandSelect.value);
-        });
-
-        taskSelect.addEventListener('change', () => {
-            const selectedOption = taskSelect.options[taskSelect.selectedIndex];
-            const tags = (selectedOption.dataset.tag || '').split(',').map(t => t.trim()).filter(Boolean);
-            
-            if (tags.length > 0) {
-                tags.forEach(tag => {
-                    if (tag.toLowerCase() == 'pausa' ) {
-                        descriptionInput.removeAttribute('required');
-                    } else {
-                        descriptionInput.setAttribute('required', '1');
-                    }
-                    
-                });
-            }
         });
 
         // Seleccionar correctamente el cliente si hay uno guardado
@@ -290,6 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
             client: formData.get('client'),
             description: formData.get('description'),
             brand: formData.get('brand'),
+            project: formData.get('project'),
             task: formData.get('task'),
             pause: formData.get('pause'),
         };

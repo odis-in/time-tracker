@@ -65,6 +65,7 @@ function buildActivityEntries(activityData, regPrevHour = false, options = {}) {
     description: activityData.description || null,
     task_id: isInactive ? false : (activityData.task_id || null),
     brand_id: isInactive ? false : (activityData.brand_id || null),
+    project_id: isInactive ? false : (activityData.project_id || null),
     pause_id: activityData.pause_id || null,
   };
 
