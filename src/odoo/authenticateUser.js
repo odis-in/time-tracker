@@ -26,6 +26,7 @@ async function authenticateUser(username, password, url, db) {
             const uid = result.result.uid;
             const name = result.result.name;
             const partner_id = result.result.partner_id;
+            const websocketWorkerVersion = result.result.websocket_worker_version;
             console.log(setCookieHeader, uid, name, partner_id);
             // Construir la URL de la imagen
             // `/web/image/res.partner/${partner_id}/avatar_128`
@@ -42,12 +43,12 @@ async function authenticateUser(username, password, url, db) {
             
             if (!imageResponse.headers.get('Content-Type').includes('image/svg+xml')) {
                 console.error("Error al obtener la imagen:", imageResponse.status , imageResponse.headers.get('Content-Type'));
-                return { setCookieHeader, uid, name, imageBase64: null, image_url };
+                return { setCookieHeader, uid, name, imageBase64: null, image_url, websocketWorkerVersion, partnerId: partner_id };
             }
 
             const svgContent = await imageResponse.text();
             const imageBase64 = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgContent);
-            return { setCookieHeader, uid, name, imageBase64 };
+            return { setCookieHeader, uid, name, imageBase64, websocketWorkerVersion, partnerId: partner_id };
         } else {
             console.log('Fallo al intentar iniciar sesión');
             return null;

@@ -42,11 +42,38 @@
           </div>
         </div>
 
-        <!-- Fecha y Hora -->
-        <div class="text-muted-foreground text-sm element">
-          <span id="app-version"></span>
-          <span> | </span>
-          <span id="date"></span>
+        <div class="header-actions">
+          <div class="notification-center">
+            <button
+              id="notification-button"
+              class="notification-button"
+              type="button"
+              aria-label="Abrir notificaciones"
+              aria-haspopup="true"
+              aria-expanded="false"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+                <path d="M10 21h4" />
+              </svg>
+              <span id="notification-badge" class="notification-badge hidden" aria-hidden="true">0</span>
+            </button>
+
+            <section id="notification-panel" class="notification-panel hidden" aria-label="Notificaciones">
+              <div class="notification-panel__header">
+                <h2>Notificaciones</h2>
+                <button id="mark-notifications-read" type="button">Marcar todas como leídas</button>
+              </div>
+              <div id="notification-list" class="notification-list"></div>
+            </section>
+          </div>
+
+          <!-- Fecha y Hora -->
+          <div class="text-muted-foreground text-sm element header-date">
+            <span id="app-version"></span>
+            <span> | </span>
+            <span id="date"></span>
+          </div>
         </div>
       </div>
       <div class="separator"></div>
@@ -131,6 +158,33 @@
         </button>
       </div>
       <span class="message-error" id="message-error"></span>
+
+      <div id="notification-detail-overlay" class="notification-detail-overlay hidden" aria-hidden="true">
+        <article
+          class="notification-detail"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="notification-detail-title"
+        >
+          <div class="notification-detail__header">
+            <div>
+              <h2 id="notification-detail-title">Notificación</h2>
+              <time id="notification-detail-date" class="notification-detail__date"></time>
+            </div>
+            <button
+              id="notification-detail-close"
+              class="notification-detail__close"
+              type="button"
+              aria-label="Cerrar notificación"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                <path d="M6 6l12 12M18 6 6 18" />
+              </svg>
+            </button>
+          </div>
+          <div id="notification-detail-content" class="notification-detail__content"></div>
+        </article>
+      </div>
       
     </div>
     <div id="confirmModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;">

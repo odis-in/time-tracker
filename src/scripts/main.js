@@ -17,6 +17,361 @@ ipcRenderer.on('info-send', (event, message) => {
 
 let updateBannerEl = null;
 let pendingUpdateStatus = null;
+const NOTIFICATIONS_STORAGE_PREFIX = 'appNotifications';
+
+function getNotificationsStorageKey() {
+	const currentUserId = localStorage.getItem('uid');
+	return currentUserId
+		? `${NOTIFICATIONS_STORAGE_PREFIX}-${currentUserId}`
+		: `${NOTIFICATIONS_STORAGE_PREFIX}-anonymous`;
+}
+
+function getNotifications() {
+	try {
+		const notifications = JSON.parse(localStorage.getItem(getNotificationsStorageKey()));
+		return Array.isArray(notifications) ? notifications : [];
+	} catch (error) {
+		console.warn('No se pudieron leer las notificaciones:', error);
+		return [];
+	}
+}
+
+function saveNotifications(notifications) {
+	localStorage.setItem(getNotificationsStorageKey(), JSON.stringify(notifications.slice(0, 30)));
+}
+
+function normalizeOdooNotificationDate(value, fallback) {
+	if (!value) return fallback || new Date().toISOString();
+
+	const dateText = String(value).trim();
+	const hasTimezone = /[zZ]$/.test(dateText) || /[+-]\d{2}:?\d{2}$/.test(dateText);
+	const parsedDate = new Date(hasTimezone ? dateText : `${dateText}Z`);
+	return Number.isNaN(parsedDate.getTime())
+		? (fallback || new Date().toISOString())
+		: parsedDate.toISOString();
+}
+
+function normalizeOdooNotification(notification, previousNotification) {
+	const payload = notification?.payload || notification;
+	const notificationId = notification?.notificationId ?? payload?.id;
+	if (!payload || notificationId === undefined || notificationId === null) return null;
+
+	const contentElement = document.createElement('div');
+	contentElement.innerHTML = payload.content || '';
+
+	return {
+		id: `odoo-notification-${notificationId}`,
+		title: payload.title || 'Nueva notificación',
+		message: contentElement.textContent.trim() || 'Nueva notificación de Odoo.',
+		createdAt: normalizeOdooNotificationDate(payload.create_date, previousNotification?.createdAt),
+		read: previousNotification?.read || false,
+		busNotificationId: notification.busNotificationId,
+		notificationId,
+		htmlContent: payload.content || '',
+	};
+}
+
+function processOdooNotifications(incomingNotifications, { authoritative = false } = {}) {
+	if (!Array.isArray(incomingNotifications)) return [];
+
+	const localNotifications = getNotifications();
+	const localByOdooId = new Map(
+		localNotifications
+			.filter((notification) => notification.notificationId !== undefined && notification.notificationId !== null)
+			.map((notification) => [String(notification.notificationId), notification])
+	);
+	const normalizedNotifications = incomingNotifications
+		.map((notification) => {
+			const payload = notification?.payload || notification;
+			const notificationId = notification?.notificationId ?? payload?.id;
+			return normalizeOdooNotification(
+				notification,
+				localByOdooId.get(String(notificationId))
+			);
+		})
+		.filter(Boolean);
+
+	let nextNotifications;
+	if (authoritative) {
+		const nonOdooNotifications = localNotifications.filter(
+			(notification) => notification.notificationId === undefined || notification.notificationId === null
+		);
+		nextNotifications = [...normalizedNotifications.reverse(), ...nonOdooNotifications];
+	} else {
+		nextNotifications = [...localNotifications];
+		normalizedNotifications.forEach((notification) => {
+			const existingIndex = nextNotifications.findIndex(
+				(item) => String(item.notificationId) === String(notification.notificationId)
+			);
+			if (existingIndex >= 0) {
+				nextNotifications[existingIndex] = notification;
+			} else {
+				nextNotifications.unshift(notification);
+			}
+		});
+	}
+
+	saveNotifications(nextNotifications);
+	renderNotifications();
+	return normalizedNotifications;
+}
+
+ipcRenderer.on('odoo-notification', (event, notification) => {
+	processOdooNotifications([notification]);
+});
+
+ipcRenderer.on('open-odoo-notification', (event, notification) => {
+	const [storedNotification] = processOdooNotifications([notification]);
+	if (storedNotification) openNotificationDetail(storedNotification.id);
+});
+
+function formatNotificationTime(createdAt) {
+	const date = new Date(createdAt);
+	if (Number.isNaN(date.getTime())) return '';
+
+	const elapsedMinutes = Math.floor((Date.now() - date.getTime()) / 60000);
+	if (elapsedMinutes < 1) return 'Ahora';
+	if (elapsedMinutes < 60) return `Hace ${elapsedMinutes} min`;
+	if (elapsedMinutes < 1440) return `Hace ${Math.floor(elapsedMinutes / 60)} h`;
+	return date.toLocaleDateString('es', { day: '2-digit', month: '2-digit' });
+}
+
+function sanitizeNotificationHtml(htmlContent) {
+	const template = document.createElement('template');
+	template.innerHTML = htmlContent || '';
+	const allowedTags = new Set(['DIV', 'P', 'UL', 'OL', 'LI', 'BR', 'STRONG', 'EM', 'B', 'I', 'IMG']);
+	const odooBaseUrl = localStorage.getItem('url');
+
+	template.content.querySelectorAll('*').forEach((element) => {
+		if (!allowedTags.has(element.tagName)) {
+			element.replaceWith(...element.childNodes);
+			return;
+		}
+
+		const originalSrc = element.tagName === 'IMG' ? element.getAttribute('src') : null;
+		const originalAlt = element.tagName === 'IMG' ? element.getAttribute('alt') : null;
+		Array.from(element.attributes).forEach((attribute) => element.removeAttribute(attribute.name));
+
+		if (element.tagName === 'IMG' && originalSrc) {
+			try {
+				const imageUrl = odooBaseUrl ? new URL(originalSrc, `${odooBaseUrl.replace(/\/$/, '')}/`) : new URL(originalSrc);
+				if (['http:', 'https:'].includes(imageUrl.protocol)) {
+					element.setAttribute('src', imageUrl.toString());
+					element.setAttribute('alt', originalAlt || 'Imagen de la notificación');
+					element.setAttribute('loading', 'lazy');
+				}
+			} catch (error) {
+				element.remove();
+			}
+		}
+	});
+
+	return template.content;
+}
+
+function formatNotificationFullDate(createdAt) {
+	const date = new Date(createdAt);
+	if (Number.isNaN(date.getTime())) return '';
+	return date.toLocaleString('es', {
+		day: '2-digit',
+		month: 'long',
+		year: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit'
+	});
+}
+
+function markNotificationAsRead(notificationId) {
+	const notifications = getNotifications();
+	const notification = notifications.find((item) => item.id === notificationId);
+	if (!notification || notification.read) return notification;
+
+	notification.read = true;
+	saveNotifications(notifications);
+	renderNotifications();
+	return notification;
+}
+
+function closeNotificationDetail() {
+	const overlay = document.getElementById('notification-detail-overlay');
+	if (!overlay) return;
+	overlay.classList.add('hidden');
+	overlay.setAttribute('aria-hidden', 'true');
+}
+
+function openNotificationDetail(notificationId) {
+	const notification = markNotificationAsRead(notificationId) ||
+		getNotifications().find((item) => item.id === notificationId);
+	const overlay = document.getElementById('notification-detail-overlay');
+	const title = document.getElementById('notification-detail-title');
+	const date = document.getElementById('notification-detail-date');
+	const content = document.getElementById('notification-detail-content');
+	const closeButton = document.getElementById('notification-detail-close');
+	if (!notification || !overlay || !title || !date || !content || !closeButton) return;
+
+	title.textContent = notification.title || 'Notificación';
+	date.textContent = formatNotificationFullDate(notification.createdAt);
+	content.replaceChildren();
+	if (notification.htmlContent) {
+		content.appendChild(sanitizeNotificationHtml(notification.htmlContent));
+	} else {
+		content.textContent = notification.message || '';
+	}
+	content.scrollTop = 0;
+
+	const panel = document.getElementById('notification-panel');
+	const bellButton = document.getElementById('notification-button');
+	panel?.classList.add('hidden');
+	bellButton?.setAttribute('aria-expanded', 'false');
+	overlay.classList.remove('hidden');
+	overlay.setAttribute('aria-hidden', 'false');
+	closeButton.focus();
+}
+
+function renderNotifications() {
+	const list = document.getElementById('notification-list');
+	const badge = document.getElementById('notification-badge');
+	const markReadButton = document.getElementById('mark-notifications-read');
+	if (!list || !badge || !markReadButton) return;
+
+	const notifications = getNotifications();
+	const unreadCount = notifications.filter((notification) => !notification.read).length;
+	badge.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+	badge.classList.toggle('hidden', unreadCount === 0);
+	markReadButton.classList.toggle('hidden', unreadCount === 0);
+	list.replaceChildren();
+
+	if (notifications.length === 0) {
+		const empty = document.createElement('div');
+		empty.className = 'notification-empty';
+		empty.textContent = 'No tienes notificaciones por el momento.';
+		list.appendChild(empty);
+		return;
+	}
+
+	notifications.forEach((notification) => {
+		const item = document.createElement('article');
+		item.className = `notification-item${notification.read ? ' is-read' : ''}`;
+		item.setAttribute('role', 'button');
+		item.setAttribute('tabindex', '0');
+		item.setAttribute('aria-label', `Abrir ${notification.title}`);
+		item.addEventListener('click', () => openNotificationDetail(notification.id));
+		item.addEventListener('keydown', (event) => {
+			if (event.key === 'Enter' || event.key === ' ') {
+				event.preventDefault();
+				openNotificationDetail(notification.id);
+			}
+		});
+
+		const icon = document.createElement('div');
+		icon.className = 'notification-item__icon';
+		icon.textContent = 'i';
+
+		const content = document.createElement('div');
+		const title = document.createElement('p');
+		title.className = 'notification-item__title';
+		title.textContent = notification.title;
+		const message = document.createElement('div');
+		message.className = 'notification-item__message';
+		message.textContent = notification.message;
+		content.append(title, message);
+
+		const status = document.createElement('div');
+		status.className = 'notification-item__status';
+		const time = document.createElement('p');
+		time.className = 'notification-item__time';
+		time.textContent = formatNotificationTime(notification.createdAt);
+		const dot = document.createElement('span');
+		dot.className = 'notification-item__dot';
+		dot.setAttribute('aria-label', 'No leída');
+		status.append(time, dot);
+
+		item.append(icon, content, status);
+		list.appendChild(item);
+	});
+	list.scrollTop = 0;
+}
+
+function addNotification(title, message, id, metadata = {}) {
+	const notifications = getNotifications();
+	const notificationId = id || `${Date.now()}-${title}`;
+	const existingNotification = notifications.find((notification) => notification.id === notificationId);
+	if (existingNotification) {
+		if (metadata.htmlContent && !existingNotification.htmlContent) {
+			Object.assign(existingNotification, metadata);
+			saveNotifications(notifications);
+			renderNotifications();
+		}
+		return;
+	}
+
+	notifications.unshift({
+		id: notificationId,
+		title,
+		message,
+		createdAt: new Date().toISOString(),
+		read: false,
+		...metadata
+	});
+	saveNotifications(notifications);
+	renderNotifications();
+}
+
+function setupNotificationCenter() {
+	const button = document.getElementById('notification-button');
+	const panel = document.getElementById('notification-panel');
+	const markReadButton = document.getElementById('mark-notifications-read');
+	const detailOverlay = document.getElementById('notification-detail-overlay');
+	const detailCloseButton = document.getElementById('notification-detail-close');
+	if (!button || !panel || !markReadButton || !detailOverlay || !detailCloseButton) return;
+
+	button.addEventListener('click', (event) => {
+		event.stopPropagation();
+		const willOpen = panel.classList.contains('hidden');
+		panel.classList.toggle('hidden', !willOpen);
+		button.setAttribute('aria-expanded', String(willOpen));
+	});
+
+	panel.addEventListener('click', (event) => event.stopPropagation());
+	markReadButton.addEventListener('click', () => {
+		const notifications = getNotifications().map((notification) => ({ ...notification, read: true }));
+		saveNotifications(notifications);
+		renderNotifications();
+	});
+
+	detailCloseButton.addEventListener('click', closeNotificationDetail);
+	detailOverlay.addEventListener('click', (event) => {
+		if (event.target === detailOverlay) closeNotificationDetail();
+	});
+
+	document.addEventListener('click', () => {
+		panel.classList.add('hidden');
+		button.setAttribute('aria-expanded', 'false');
+	});
+
+	document.addEventListener('keydown', (event) => {
+		if (event.key === 'Escape') {
+			if (!detailOverlay.classList.contains('hidden')) {
+				closeNotificationDetail();
+				return;
+			}
+			panel.classList.add('hidden');
+			button.setAttribute('aria-expanded', 'false');
+			button.focus();
+		}
+	});
+
+	window.addEventListener('storage', (event) => {
+		if (event.key === 'uid') {
+			panel.classList.add('hidden');
+			button.setAttribute('aria-expanded', 'false');
+			closeNotificationDetail();
+			renderNotifications();
+		}
+	});
+
+	renderNotifications();
+}
 
 function ensureUpdateBanner() {
 	if (updateBannerEl) {
@@ -100,6 +455,13 @@ function applyUpdateStatus(payload) {
 	}
 
 	setUpdateBanner(payload.state, payload.percent, payload.message);
+	if (payload.state === 'available') {
+		addNotification('Actualización disponible', 'Se está descargando una nueva versión de Time Tracker.', 'update-available');
+	} else if (payload.state === 'downloaded') {
+		addNotification('Actualización lista', 'La actualización se instaló y la aplicación se reiniciará.', 'update-downloaded');
+	} else if (payload.state === 'error') {
+		addNotification('Error de actualización', payload.message || 'No se pudo completar la actualización.', `update-error-${payload.message || 'unknown'}`);
+	}
 }
 
 ipcRenderer.on('update-status', (event, payload) => {
@@ -863,7 +1225,21 @@ function sumOFHoursWorked(time1, time2) {
     return `${minSum}:${secondSum}`;   
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+	setupNotificationCenter();
+	try {
+		const notifications = await ipcRenderer.invoke('get-odoo-notifications-snapshot');
+		processOdooNotifications(notifications, { authoritative: true });
+	} catch (error) {
+		console.warn('No se pudieron sincronizar las notificaciones de Odoo:', error);
+	}
+
+	try {
+		const pendingNotifications = await ipcRenderer.invoke('get-pending-odoo-notifications');
+		processOdooNotifications(pendingNotifications);
+	} catch (error) {
+		console.warn('No se pudieron recuperar las notificaciones pendientes:', error);
+	}
 	const closeButton = document.getElementById('close');
 	closeButton.addEventListener('click', () => {
 		ipcRenderer.send('close-main-window');
@@ -971,4 +1347,3 @@ function updateTime() {
   
   setInterval(updateTime, 1000);
 updateTime();
-

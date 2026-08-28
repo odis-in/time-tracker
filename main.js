@@ -1,9 +1,10 @@
-const { app, Tray, Menu, ipcMain, BrowserWindow, net , powerMonitor } = require('electron');
+const { app, Tray, Menu, ipcMain, BrowserWindow, Notification, net , powerMonitor } = require('electron');
 
 const { autoUpdater, AppUpdater } = require("electron-updater");
 const { authenticateUser } = require('./src/odoo/authenticateUser');
 const { getClients } = require('./src/odoo/getClients');
 const { getConfig } = require('./src/odoo/getConfig');
+const { getNotifications } = require('./src/odoo/getNotifications');
 const { presenceNotification } = require('./src/utils/presenceNotification');
 const cron = require('node-cron');
 const path = require('path');
@@ -18,6 +19,7 @@ const nodeNotifier = require('node-notifier');
 const { checkServerConnection } = require('./src/utils/checkConnection');
 const { getUserActivity } = require('./src/odoo/getUserActivity');
 const { sendDataSummary } = require('./src/odoo/sendData');
+const { OdooWebsocketService } = require('./src/services/odooWebsocketService');
 // const { getDataPause } = require('./src/odoo/getDataPuase');
 const { systemLogger } = require('./src/utils/systemLogs');
 const logger = systemLogger();
@@ -49,6 +51,108 @@ let pauseAutoResumeTimeout = null;
 let pauseAutoResumeMinutes = null;
 let isPaused = false;
 let isInstallingUpdate = false;
+const pendingOdooNotifications = [];
+let pendingOdooNotificationsSnapshot = null;
+const systemNotifiedNotificationIds = new Set();
+const activeSystemNotifications = new Set();
+const odooWebsocketService = new OdooWebsocketService();
+
+async function fetchOdooNotificationsSnapshot(sessionId, url) {
+  try {
+    return await getNotifications(sessionId, url);
+  } catch (error) {
+    return null;
+  }
+}
+
+function notificationHtmlToText(htmlContent) {
+  return String(htmlContent || '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/\s*(div|p|li|ul|ol)\s*>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&#(\d+);/g, (match, code) => {
+      const codePoint = Number(code);
+      return Number.isInteger(codePoint) && codePoint >= 0 && codePoint <= 0x10FFFF
+        ? String.fromCodePoint(codePoint)
+        : match;
+    })
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n\s*\n+/g, '\n')
+    .trim();
+}
+
+function openOdooNotification(notification) {
+  const openDetail = () => {
+    const mainWindow = getMainWindow();
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    mainWindow.show();
+    mainWindow.focus();
+    mainWindow.webContents.send('open-odoo-notification', notification);
+  };
+
+  let mainWindow = getMainWindow();
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    mainWindow = createMainWindow();
+  }
+
+  if (mainWindow.webContents.isLoadingMainFrame()) {
+    mainWindow.webContents.once('did-finish-load', openDetail);
+  } else {
+    openDetail();
+  }
+}
+
+function showSystemNotification(notification) {
+  if (!Notification.isSupported()) return;
+
+  const persistentNotificationId = notification.notificationId;
+  if (
+    persistentNotificationId === undefined ||
+    persistentNotificationId === null ||
+    systemNotifiedNotificationIds.has(String(persistentNotificationId))
+  ) return;
+
+  systemNotifiedNotificationIds.add(String(persistentNotificationId));
+  const body = notificationHtmlToText(notification.payload?.content)
+    .replace(/\n/g, ' ')
+    .slice(0, 180) || 'Tienes una nueva notificación.';
+  const systemNotification = new Notification({
+    title: notification.payload?.title || 'Nueva notificación de Time Tracker',
+    body,
+    silent: false,
+  });
+
+  activeSystemNotifications.add(systemNotification);
+  systemNotification.on('click', () => openOdooNotification(notification));
+  systemNotification.on('close', () => activeSystemNotifications.delete(systemNotification));
+  systemNotification.on('failed', (event, error) => {
+    activeSystemNotifications.delete(systemNotification);
+  });
+  systemNotification.show();
+}
+
+function closeSystemNotifications() {
+  activeSystemNotifications.forEach((notification) => notification.close());
+  activeSystemNotifications.clear();
+}
+
+odooWebsocketService.on('notification', (notification) => {
+  pendingOdooNotifications.push(notification);
+  if (pendingOdooNotifications.length > 100) pendingOdooNotifications.shift();
+
+  const mainWindow = getMainWindow();
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('odoo-notification', notification);
+  }
+
+  showSystemNotification(notification);
+});
 
 const activityData = {
   odoo_id: null,
@@ -506,17 +610,24 @@ function isConnectionRelatedFailure(result) {
       if (username && password) {
         logger.info(`Iniciando sesión para el usuario: ${username}`);
         try {
-          const[clients, userActivityData, odooConfig , connection] = await Promise.all([
+          const[clients, userActivityData, odooConfig, connection, notificationsSnapshot] = await Promise.all([
             getClients(session_id, url),
             getUserActivity(),
             getConfig(session_id, url),
             checkServerConnection(),
+            fetchOdooNotificationsSnapshot(session_id, url),
             // getDataPause()
           ]);
+          pendingOdooNotificationsSnapshot = notificationsSnapshot;
           pausas = odooConfig.user_activity_pause;
           logger.info(`Configuración obtenida: ${JSON.stringify(odooConfig)}`);
           await saveCredentials(username, password, url, odooConfig.time_notification.toString()  , uid, session_id, db);
           session = true;
+          await odooWebsocketService.start({
+            baseUrl: url,
+            sessionId: session_id,
+            currentUserId: uid,
+          });
           
           const store = await getStore();
           store.set(`data-user-${uid}`, userActivityData);
@@ -577,14 +688,34 @@ function isConnectionRelatedFailure(result) {
     ipcMain.handle('login', async (event, username, password, url, db) => {
       try {
         
-        const { setCookieHeader, uid, imageBase64 , name } = await authenticateUser(username, password, url, db);
-        const [clients ,odooConfig ,store] = await Promise.all([
+        const {
+          setCookieHeader,
+          uid,
+          imageBase64,
+          name,
+          websocketWorkerVersion,
+          partnerId,
+        } = await authenticateUser(username, password, url, db);
+        pendingOdooNotifications.length = 0;
+        pendingOdooNotificationsSnapshot = null;
+        systemNotifiedNotificationIds.clear();
+        closeSystemNotifications();
+        const [clients, odooConfig, store, notificationsSnapshot] = await Promise.all([
           getClients(setCookieHeader, url),
           getConfig(setCookieHeader, url),
-          getStore()
+          getStore(),
+          fetchOdooNotificationsSnapshot(setCookieHeader, url),
         ]);
+        pendingOdooNotificationsSnapshot = notificationsSnapshot;
 
         await saveCredentials(username, password, url, odooConfig.time_notification.toString() , uid.toString(), setCookieHeader.toString(), db);
+        await odooWebsocketService.start({
+          baseUrl: url,
+          sessionId: setCookieHeader,
+          websocketWorkerVersion,
+          currentUserId: uid,
+          currentPartnerId: partnerId,
+        });
         // const pauses = await getDataPause()
         const pauses = odooConfig.user_activity_pause;
         const userActivityData = await getUserActivity();
@@ -774,7 +905,11 @@ function isConnectionRelatedFailure(result) {
   ipcMain.on('logout', async () => {
     await sendLastData();
     try {
-      
+      odooWebsocketService.stop();
+      pendingOdooNotifications.length = 0;
+      pendingOdooNotificationsSnapshot = null;
+      systemNotifiedNotificationIds.clear();
+      closeSystemNotifications();
       await clearCredentials();
       
       logger.info('Usuario ha cerrado sesión');
@@ -1229,6 +1364,16 @@ function isConnectionRelatedFailure(result) {
     return app.getVersion();
   });
 
+  ipcMain.handle('get-pending-odoo-notifications', () => {
+    return pendingOdooNotifications.splice(0, pendingOdooNotifications.length);
+  });
+
+  ipcMain.handle('get-odoo-notifications-snapshot', () => {
+    const snapshot = pendingOdooNotificationsSnapshot;
+    pendingOdooNotificationsSnapshot = null;
+    return snapshot;
+  });
+
   ipcMain.on('delete_data', async () => {
     const store = await getStore();
     const { uid } = await getCredentials(['uid']);
@@ -1267,6 +1412,7 @@ const sendDataBeforeQuit = async () => {
 };
 
 app.on('before-quit', async (event) => {
+  odooWebsocketService.stop();
   if (app.isQuiting || isInstallingUpdate) {
       return; 
   }
