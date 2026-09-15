@@ -16,3 +16,18 @@
 ```bash
 npm run dist
 ```
+
+## Publicación
+
+Para publicar una nueva versión mediante GitHub Actions, crea y sube un tag que coincida con la versión de `package.json`:
+
+```bash
+git tag v1.3.11
+git push origin v1.3.11
+```
+
+También puedes hacerlo en una sola línea:
+
+```bash
+git tag v1.3.11 && git push origin v1.3.11
+```

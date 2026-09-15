@@ -15,7 +15,6 @@ const { getIpAndLocation } = require('./src/utils/getIPAddress');
 const { checkDataAndSend, buildActivityEntries } = require('./src/utils/checkDataAndSend');
 const { calculateTimeDifference, convertDate } = require('./src/utils/calculateTimeDifference');
 const { sendActivityUserSummary, sendLocalData, saveDataLocally } = require('./src/utils/dataManager');
-const nodeNotifier = require('node-notifier');
 const { checkServerConnection } = require('./src/utils/checkConnection');
 const { getUserActivity } = require('./src/odoo/getUserActivity');
 const { sendDataSummary } = require('./src/odoo/sendData');
@@ -785,13 +784,12 @@ function isConnectionRelatedFailure(result) {
 
   autoUpdater.on('error', (info) => {
     broadcastUpdateStatus({ state: 'error', message: String(info) });
-    nodeNotifier.notify({
+    new Notification({
       title: 'Error en la actualización',
-      message: `Error durante la actualización: ${info}`,
+      body: `Error durante la actualización: ${info}`,
       icon: path.join(__dirname, './src/assets/img/timer-ticker-ico.png'),
-      sound: true,
-      wait: true
-    });
+      silent: false,
+    }).show();
   });
 
   ipcMain.on('minimize-login-window', () => {

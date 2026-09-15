@@ -1,4 +1,3 @@
-const nodeNotifier = require('node-notifier');
 const { app, Notification } = require('electron');
 const { checkDataAndSend } = require('./checkDataAndSend');
 const { createModalWindow } = require('./windowaManager');
@@ -15,34 +14,7 @@ function getFormattedTimestamp() {
 	return now.toISOString().replace('T', ' ').substring(0, 19);
 }
 
-function getNotificationOptions() {
-	const baseOptions = {
-		appID: 'com.electron-project',
-		title: 'Confirmar presencia',
-		message: 'Click aqui para confirmar tu presencia',
-		icon: path.join(__dirname, '../assets/img/timer-ticker-ico.png'),
-		sound: true,
-		reply: false,
-	};
-
-	if (!isMac) {
-		return {
-			...baseOptions,
-			wait: true,
-		};
-	}
-
-	// macOS Notification Center uses `timeout` (seconds). `wait: true` maps to 5s.
-	// We set 60s explicitly so users can see/interact with the notification longer.
-	return {
-		...baseOptions,
-		timeout: MAC_NOTIFICATION_TIMEOUT_SECONDS,
-		wait: false,
-	};
-}
-
 function presenceNotification(activityData) {
-	const notificationOptions = getNotificationOptions();
 	let handled = false;
 	let bounceId = -1;
 	let fallbackTimer = null;
@@ -112,27 +84,21 @@ function presenceNotification(activityData) {
 		return;
 	}
 
-	nodeNotifier.notify(
-		notificationOptions,
-		(err, response, metadata) => {
-			if (err) {
-				console.error('Error al mostrar la notificación:', err);
-				finalizeAsInactive();
-				return;
-			}
+	if (!Notification.isSupported()) {
+		finalizeAsInactive();
+		return;
+	}
 
-			const responseText = String(response || '').toLowerCase();
-			const activationType = String(metadata?.activationType || '').toLowerCase();
-			const clicked = responseText === 'activate' || activationType === 'contents_clicked';
+	const notification = new Notification({
+		title: 'Confirmar presencia',
+		body: 'Click aqui para confirmar tu presencia',
+		icon: path.join(__dirname, '../assets/img/timer-ticker-ico.png'),
+		silent: false,
+	});
 
-			if (clicked) {
-				finalizeAsActive();
-				return;
-			}
-
-			finalizeAsInactive();
-		}
-	);
+	notification.on('click', finalizeAsActive);
+	notification.on('close', finalizeAsInactive);
+	notification.show();
 }
 
 module.exports = { presenceNotification };

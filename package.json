@@ -47,7 +47,6 @@
       "hardenedRuntime": true,
       "entitlements": "entitlements.mac.plist",
       "entitlementsInherit": "entitlements.mac.plist",
-      "x64ArchFiles": "**/node_modules/node-notifier/vendor/mac.noindex/terminal-notifier.app/**",
       "gatekeeperAssess": false,
       "icon": "./src/assets/img/timer-ticker-ico.icns",
       "artifactName": "Time Tracker-${version}-universal-mac.${ext}",
@@ -86,7 +85,6 @@
     "electron-updater": "^6.3.9",
     "keytar": "^7.9.0",
     "node-cron": "^3.0.3",
-    "node-notifier": "^10.0.1",
     "screenshot-desktop": "^1.5.3",
     "ws": "^8.21.3",
     "xmlrpc": "^1.3.2"
