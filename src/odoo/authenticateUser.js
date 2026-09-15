@@ -41,13 +41,14 @@ async function authenticateUser(username, password, url, db) {
                 credentials: 'include'
             });
             
-            if (!imageResponse.headers.get('Content-Type').includes('image/svg+xml')) {
-                console.error("Error al obtener la imagen:", imageResponse.status , imageResponse.headers.get('Content-Type'));
+            const contentType = imageResponse.headers.get('Content-Type') || '';
+            if (!imageResponse.ok || !contentType.startsWith('image/')) {
+                console.error("Error al obtener la imagen:", imageResponse.status, contentType);
                 return { setCookieHeader, uid, name, imageBase64: null, image_url, websocketWorkerVersion, partnerId: partner_id };
             }
 
-            const svgContent = await imageResponse.text();
-            const imageBase64 = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgContent);
+            const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+            const imageBase64 = `data:${contentType};base64,${imageBuffer.toString('base64')}`;
             return { setCookieHeader, uid, name, imageBase64, websocketWorkerVersion, partnerId: partner_id };
         } else {
             console.log('Fallo al intentar iniciar sesión');
